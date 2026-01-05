@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from app import db
-from models import User
+from models import User, Qualification, UtilisateurQualification, Parametre
 
 
 class UserController:
@@ -33,6 +33,25 @@ class UserController:
             db.session.add(new_user)
             db.session.commit()
 
+            # Get the "Debutant" qualification (valeur=0)
+            debutant_qualif = Qualification.query.filter_by(valeur=0).first()
+
+            # Create user's qualification (Debutant by default)
+            user_qualification = UtilisateurQualification(
+                id_utilisateur=new_user.id,
+                id_qualification=debutant_qualif.id
+            )
+            db.session.add(user_qualification)
+
+            # Create default parameters (ANG, DOLLAR)
+            user_parametre = Parametre(
+                id_utilisateur=new_user.id,
+                langue='ANG',
+                devise='DOLLAR'
+            )
+            db.session.add(user_parametre)
+            db.session.commit()
+
             return jsonify({
                 'message': 'User created successfully',
                 'user': {
@@ -40,6 +59,11 @@ class UserController:
                     'nom': new_user.nom,
                     'email': new_user.email,
                     'code_parrainage': new_user.code_parrainage,
+                    'qualification': {
+                        'id': debutant_qualif.id,
+                        'valeur': debutant_qualif.valeur,
+                        'nom': debutant_qualif.nom
+                    },
                     'created_at': new_user.created_at.isoformat()
                 }
             }), 201
@@ -150,6 +174,40 @@ class UserController:
             db.session.commit()
 
             return jsonify({'message': 'User deleted successfully'}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    def change_password(user_id):
+        """Change user password"""
+        try:
+            data = request.get_json()
+
+            # Validate required fields
+            required_fields = ['precedent_mdp', 'nouveau_mdp']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+
+            # Check if user exists
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            # Verify current password
+            if not user.check_password(data['precedent_mdp']):
+                return jsonify({'error': 'Incorrect current password'}), 401
+
+            # Update password
+            from app import bcrypt
+            user.mot_de_passe = bcrypt.generate_password_hash(data['nouveau_mdp']).decode('utf-8')
+            db.session.commit()
+
+            return jsonify({
+                'message': 'Password changed successfully'
+            }), 200
 
         except Exception as e:
             db.session.rollback()

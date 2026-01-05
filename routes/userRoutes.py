@@ -17,3 +17,6 @@ user_bp.route('/<int:user_id>', methods=['PUT'])(UserController.update_user)
 
 # Delete a user
 user_bp.route('/<int:user_id>', methods=['DELETE'])(UserController.delete_user)
+
+# Change password
+user_bp.route('/<int:user_id>/password', methods=['PUT'])(UserController.change_password)

@@ -1,14 +1,14 @@
 from app import app, db
 import pymysql
-from models import Admin, User
+from models import Admin, User, Qualification, Product
 
 # Create database if it doesn't exist
 def create_database():
     try:
         connection = pymysql.connect(
             host='localhost',
-            user='root',
-            password='',
+            user='adr',
+            password='Niavo jr171102!',
             port=3306
         )
         cursor = connection.cursor()
@@ -44,7 +44,31 @@ def create_default_admin():
         else:
             print("Admin already exists")
 
+# Create qualifications
+def create_qualifications():
+    with app.app_context():
+        # Check if qualifications already exist
+        existing_qualifs = Qualification.query.first()
+        if existing_qualifs:
+            print("Qualifications already exist. Skipping...")
+        else:
+            qualifications = [
+                Qualification(valeur=0, nom="DEBUTANT"),
+                Qualification(valeur=1, nom="VALIDER"),
+                Qualification(valeur=2, nom="VIP_1"),
+                Qualification(valeur=3, nom="VIP_2"),
+                Qualification(valeur=4, nom="VIP_3"),
+                Qualification(valeur=5, nom="VIP_4"),
+            ]
+            db.session.add_all(qualifications)
+            db.session.commit()
+            print("Qualifications created successfully:")
+            for q in qualifications:
+                print(f"  - {q.nom} (valeur={q.valeur})")
+
 if __name__ == '__main__':
     create_database()
     create_tables()
+    create_qualifications()
     create_default_admin()
+    print("\nDatabase initialization complete!")
