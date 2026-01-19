@@ -1,10 +1,12 @@
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
+import jwt
+from functools import wraps
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -31,6 +33,52 @@ app.register_blueprint(user_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(qualification_bp)
 app.register_blueprint(parametre_bp)
+
+
+@app.before_request
+def check_token_middleware():
+    """Verify JWT token for all routes except login and static/public endpoints"""
+
+    # List of endpoints to exclude from token verification
+    excluded_endpoints = [
+        'auth.login_user',
+        'auth.login_admin',
+        'static'
+    ]
+
+    # Allow OPTIONS requests (handled by CORS)
+    if request.method == 'OPTIONS':
+        return None
+
+    # Skip verification for excluded endpoints
+    if request.endpoint in excluded_endpoints:
+        return None
+
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header:
+        return jsonify({'error': 'Missing authorization token'}), 401
+
+    try:
+        # Expected format: "Bearer <token>"
+        if 'Bearer ' not in auth_header:
+            return jsonify({'error': 'Invalid token format'}), 401
+
+        token = auth_header.split(" ")[1]
+
+        # Verify token
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+
+        # Add user info to request context if needed
+        # request.user_id = payload.get('user_id')
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({'error': 'Token has expired'}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({'error': 'Invalid token'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
 
 
 if __name__ == '__main__':

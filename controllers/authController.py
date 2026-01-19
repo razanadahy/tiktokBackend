@@ -1,6 +1,8 @@
 import time
 import logging
-from flask import jsonify, request
+import jwt
+from datetime import datetime, timedelta, timezone
+from flask import jsonify, request, current_app
 from app import db, limiter
 from models import User, Admin
 
@@ -33,16 +35,15 @@ class AuthController:
             if not user.check_password(data['mot_de_passe']):
                 return jsonify({'error': 'Invalid email or password'}), 401
 
-            return jsonify({
-                'message': 'Login successful',
-                'user': {
-                    'id': user.id,
-                    'nom': user.nom,
-                    'email': user.email,
-                    'code_parrainage': user.code_parrainage,
-                    'created_at': user.created_at.isoformat()
-                }
-            }), 200
+            # Generate token
+            token_payload = {
+                'user_id': user.id,
+                'email': user.email,
+                'exp': datetime.now(timezone.utc) + timedelta(hours=1)
+            }
+            token = jwt.encode(token_payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+            return jsonify({'token': token}), 200
 
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -81,14 +82,16 @@ class AuthController:
             # Log successful attempt
             logging.info(f"Successful admin login: {email} from IP: {ip_address}")
 
-            return jsonify({
-                'message': 'Admin login successful',
-                'admin': {
-                    'id': admin.id,
-                    'email': admin.email,
-                    'created_at': admin.created_at.isoformat()
-                }
-            }), 200
+            # Generate token for admin
+            token_payload = {
+                'admin_id': admin.id,
+                'email': admin.email,
+                'is_admin': True,
+                'exp': datetime.now(timezone.utc) + timedelta(hours=1)
+            }
+            token = jwt.encode(token_payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+            return jsonify({'token': token}), 200
 
         except Exception as e:
             logging.error(f"Admin login error: {str(e)}")
