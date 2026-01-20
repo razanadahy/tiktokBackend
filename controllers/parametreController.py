@@ -10,7 +10,7 @@ class ParametreController:
         """Get parameters of a user by user_id"""
         try:
             # Check if user exists
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 
@@ -45,7 +45,7 @@ class ParametreController:
             data = request.get_json()
 
             # Check if user exists
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 

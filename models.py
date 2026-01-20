@@ -1,6 +1,10 @@
+import uuid
+
 from app import db, bcrypt
 from datetime import datetime
 import enum
+from utils import generate_id
+from sqlalchemy import event
 
 
 class QualificationValue(enum.Enum):
@@ -15,7 +19,7 @@ class QualificationValue(enum.Enum):
 class User(db.Model):
     __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.String(12), primary_key=True)
     nom = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     mot_de_passe = db.Column(db.String(255), nullable=False)
@@ -41,7 +45,7 @@ class User(db.Model):
 class Admin(db.Model):
     __tablename__ = 'admins'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.String(12), primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     mot_de_passe = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -60,7 +64,7 @@ class Admin(db.Model):
 class Qualification(db.Model):
     __tablename__ = 'qualifications'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.String(12), primary_key=True)
     valeur = db.Column(db.Integer, unique=True, nullable=False)
     nom = db.Column(db.String(50), nullable=False)
 
@@ -75,9 +79,9 @@ class Qualification(db.Model):
 class UtilisateurQualification(db.Model):
     __tablename__ = 'utilisateur_qualifications'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_utilisateur = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    id_qualification = db.Column(db.Integer, db.ForeignKey('qualifications.id'), nullable=False)
+    id = db.Column(db.String(12), primary_key=True)
+    id_utilisateur = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    id_qualification = db.Column(db.String(12), db.ForeignKey('qualifications.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -91,8 +95,8 @@ class UtilisateurQualification(db.Model):
 class Parametre(db.Model):
     __tablename__ = 'parametres'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_utilisateur = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    id = db.Column(db.String(12), primary_key=True)
+    id_utilisateur = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False, unique=True)
     langue = db.Column(db.String(10), nullable=False, default='ANG')
     devise = db.Column(db.String(10), nullable=False, default='DOLLAR')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -110,16 +114,181 @@ class Parametre(db.Model):
         return f'<Parametre user={self.id_utilisateur} langue={self.langue} devise={self.devise}>'
 
 
-class Product(db.Model):
-    __tablename__ = 'products'
+
+class Transaction(db.Model):
+    __tablename__ = 'transactions'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    stock = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    date_transaction = db.Column(db.DateTime, default=datetime.utcnow)
+    action = db.Column(db.String(20), nullable=False)  # recharge, retrait, gain
+    montant = db.Column(db.Numeric(10, 2), nullable=False)
+    commentaire = db.Column(db.String(255), nullable=True)
+
+    user = db.relationship('User', backref='transactions')
 
     def __repr__(self):
-        return f'<Product {self.name}>'
+        return f'<Transaction {self.action} {self.montant} for user {self.user_id}>'
+
+class Revendeur(db.Model):
+    __tablename__ = 'revendeurs'
+
+    id = db.Column(db.String(12), primary_key=True)
+    nom = db.Column(db.String(100), nullable=False)
+    plateforme = db.Column(db.String(100), nullable=False)
+    produits = db.relationship('Produit', back_populates='revendeur')
+
+    def __repr__(self):
+        return f'<Revendeur {self.nom}>'
+
+class Produit(db.Model):
+    __tablename__ = 'produits'
+
+    idProduit = db.Column(db.String(12), primary_key=True)
+    image_produit = db.Column(db.String(500))
+    nom_produit = db.Column(db.String(255), nullable=False)
+    prix = db.Column(db.Numeric(10,2), nullable=False)
+    commission = db.Column(db.Numeric(10,2), nullable=False)
+    revendeur_id = db.Column(db.String(12), db.ForeignKey('revendeurs.id'), nullable=False)
+    description_produit = db.Column(db.Text, nullable=True)
+    linkProduit = db.Column(db.String(500))
+    revendeur = db.relationship('Revendeur', back_populates='produits')
+    stats = db.relationship('StatProduitBoost', back_populates='produit')
+
+    def __repr__(self):
+        return f'<Produit {self.nom_produit}>'
+
+class CommandeStatut(enum.Enum):
+    EN_ATTENTE = 'En attente'
+    COMPLETEE = 'complétée'
+
+class StatProduitBoostStatut(enum.Enum):
+    A_FAIRE = 'à faire'
+    EN_COURS = 'en cours'
+    TERMINEE = 'terminé'
+
+class StatProduitBoostTypePreuve(enum.Enum):
+    LIEN = 'lien'
+    SCREENSHOT = 'screenshot'
+
+class Commande(db.Model):
+    __tablename__ = 'commandes'
+
+    idCommande = db.Column(db.String(12), primary_key=True)
+    description_commande = db.Column(db.Text)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    commission_total = db.Column(db.Numeric(10,2))
+    cout = db.Column(db.Numeric(10,2))
+    tableauProduit = db.Column(db.JSON)
+    statut = db.Column(db.Enum(CommandeStatut))
+    user_id = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f'<Commande {self.idCommande}>'
+
+class Boost(db.Model):
+    __tablename__ = 'boosts'
+
+    idBoost = db.Column(db.String(12), primary_key=True)
+    idCommande = db.Column(db.String(12), db.ForeignKey('commandes.idCommande'), nullable=False)
+    idUtilisateur = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    commande = db.relationship('Commande')
+    user = db.relationship('User')
+    stats = db.relationship('StatProduitBoost', back_populates='boost')
+
+    def __repr__(self):
+        return f'<Boost {self.idBoost}>'
+
+class StatProduitBoost(db.Model):
+    __tablename__ = 'stat_produit_boost'
+
+    idStatProduitBoost = db.Column(db.String(12), primary_key=True)
+    idBoost = db.Column(db.String(12), db.ForeignKey('boosts.idBoost'), nullable=False)
+    idProduit = db.Column(db.String(12), db.ForeignKey('produits.idProduit'), nullable=False)
+    statut = db.Column(db.Enum(StatProduitBoostStatut), default=StatProduitBoostStatut.A_FAIRE)
+    Preuve = db.Column(db.Text)
+    typePreuve = db.Column(db.Enum(StatProduitBoostTypePreuve))
+    boost = db.relationship('Boost', back_populates='stats')
+    produit = db.relationship('Produit', back_populates='stats')
+
+    def __repr__(self):
+        return f'<StatProduitBoost {self.idStatProduitBoost}>'
+
+# Event listeners for ID generation
+@event.listens_for(User, 'before_insert')
+def set_user_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(Revendeur, 'before_insert')
+def set_revendeur_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(Produit, 'before_insert')
+def set_produit_id(mapper, connect, target):
+    if not target.idProduit:
+        target.idProduit = generate_id()
+
+@event.listens_for(Commande, 'before_insert')
+def set_commande_id(mapper, connect, target):
+    if not target.idCommande:
+        target.idCommande = generate_id()
+
+@event.listens_for(Boost, 'before_insert')
+def set_boost_id(mapper, connect, target):
+    if not target.idBoost:
+        target.idBoost = generate_id()
+
+@event.listens_for(StatProduitBoost, 'before_insert')
+def set_stat_id(mapper, connect, target):
+    if not target.idStatProduitBoost:
+        target.idStatProduitBoost = generate_id()
+
+# Event listeners for legacy models
+@event.listens_for(Qualification, 'before_insert')
+def set_qualification_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(Admin, 'before_insert')
+def set_admin_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(UtilisateurQualification, 'before_insert')
+def set_uq_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(Parametre, 'before_insert')
+def set_parametre_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(Transaction, 'before_insert')
+def set_transaction_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+# Auto-create StatProduitBoost on Boost insert
+@event.listens_for(Boost, 'after_insert')
+def auto_create_stats(mapper, connect, boost):
+    commande = Commande.query.filter_by(idCommande=boost.idCommande).first()
+    if commande and commande.tableauProduit:
+        for prod_data in commande.tableauProduit:
+            idProduit = prod_data.get('idProduit')
+            if idProduit:
+                existing = StatProduitBoost.query.filter_by(
+                    idBoost=boost.idBoost,
+                    idProduit=idProduit
+                ).first()
+                if not existing:
+                    stat = StatProduitBoost(
+                        idBoost=boost.idBoost,
+                        idProduit=idProduit
+                    )
+                    db.session.add(stat)
+    db.session.commit()

@@ -43,7 +43,16 @@ class AuthController:
             }
             token = jwt.encode(token_payload, current_app.config['SECRET_KEY'], algorithm='HS256')
 
-            return jsonify({'token': token}), 200
+            return jsonify({
+                'token': token,
+                'user': {
+                    'id': user.id,
+                    'nom': user.nom,
+                    'email': user.email,
+                    'code_parrainage': user.code_parrainage,
+                    'created_at': user.created_at.isoformat()
+                }
+            }), 200
 
         except Exception as e:
             return jsonify({'error': str(e)}), 500

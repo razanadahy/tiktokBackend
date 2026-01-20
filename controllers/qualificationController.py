@@ -10,7 +10,7 @@ class QualificationController:
         """Get qualification of a user by user_id"""
         try:
             # Check if user exists
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 
@@ -24,7 +24,7 @@ class QualificationController:
                     'message': 'User has no qualification assigned'
                 }), 200
 
-            qualification = Qualification.query.get(user_qualif.id_qualification)
+            qualification = Qualification.query.filter_by(id=user_qualif.id_qualification).first()
 
             return jsonify({
                 'user_id': user_id,
@@ -50,7 +50,7 @@ class QualificationController:
                 return jsonify({'error': 'Missing required field: id_qualification'}), 400
 
             # Check if user exists
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 

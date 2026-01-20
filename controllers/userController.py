@@ -97,13 +97,13 @@ class UserController:
     def get_user(user_id):
         """Get a single user by ID"""
         try:
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
 
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 
             return jsonify({
-                'user': {
+                'users': {
                     'id': user.id,
                     'nom': user.nom,
                     'email': user.email,
@@ -119,7 +119,7 @@ class UserController:
     def update_user(user_id):
         """Update a user"""
         try:
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
 
             if not user:
                 return jsonify({'error': 'User not found'}), 404
@@ -165,7 +165,7 @@ class UserController:
     def delete_user(user_id):
         """Delete a user"""
         try:
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
 
             if not user:
                 return jsonify({'error': 'User not found'}), 404
@@ -192,7 +192,7 @@ class UserController:
                     return jsonify({'error': f'Missing required field: {field}'}), 400
 
             # Check if user exists
-            user = User.query.get(user_id)
+            user = User.query.filter_by(id=user_id).first()
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 
@@ -211,4 +211,29 @@ class UserController:
 
         except Exception as e:
             db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    def get_current_user():
+        """Get current user from token"""
+        try:
+            user_id = getattr(request, 'current_user_id', None)
+            if not user_id:
+                return jsonify({'error': 'No user context found'}), 401
+
+            user = User.query.filter_by(id=user_id).first()
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            return jsonify({
+                'users': {
+                    'id': user.id,
+                    'nom': user.nom,
+                    'email': user.email,
+                    'code_parrainage': user.code_parrainage,
+                    'created_at': user.created_at.isoformat()
+                }
+            }), 200
+
+        except Exception as e:
             return jsonify({'error': str(e)}), 500
