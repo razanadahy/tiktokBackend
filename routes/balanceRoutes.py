@@ -6,8 +6,12 @@ balance_bp = Blueprint('balance', __name__, url_prefix='/api/balance')
 # Get balance for user
 balance_bp.route('/<user_id>', methods=['GET'])(BalanceController.get_balance)
 
-# Add transaction (recharge, retrait, gain)
+# Add recharge (with proof)
 balance_bp.route('/add/<user_id>', methods=['POST'])(BalanceController.add_transaction)
+
+# Add gain or retrait (minimal)
+balance_bp.route('/add-gain/<user_id>', methods=['POST'])(BalanceController.add_gain)
+balance_bp.route('/add-retrait/<user_id>', methods=['POST'])(BalanceController.add_retrait)
 
 # User info + balance
 balance_bp.route('/user/<user_id>', methods=['GET'])(BalanceController.get_user_balance_info)

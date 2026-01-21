@@ -1,55 +1,131 @@
 from flask import jsonify, request
 from app import db
-from models import User, Transaction
+from models import User, Transaction, TransactionStatus
 from datetime import datetime
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 class BalanceController:
     @staticmethod
     def get_balance(user_id):
         """Get user balance: recharges + gains - retraits"""
         recharges = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'recharge'
+            Transaction.user_id == user_id, Transaction.action == 'recharge', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         retraits = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'retrait'
+            Transaction.user_id == user_id, Transaction.action == 'retrait', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         gains = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'gain'
+            Transaction.user_id == user_id, Transaction.action == 'gain', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         balance = float(recharges) + float(gains) - float(retraits)
         return jsonify({'balance': balance}), 200
 
     @staticmethod
     def add_transaction(user_id):
-        """Add transaction (recharge, retrait, gain)"""
-        data = request.get_json()
-        action = data.get('action')
+
+        # Check if action is recharge
+        data = request.form
+
         montant = data.get('montant')
         commentaire = data.get('commentaire')
-        date_transaction = data.get('date_transaction', datetime.utcnow())
+        sender_address = data.get('sender_address')
+        recipient_address = data.get('recipient_address')
+        transaction_hash = data.get('transaction_hash')
 
-        if not action or montant is None:
-            return jsonify({'error': 'Missing action or montant'}), 400
+        if not montant or float(montant) <= 0:
+            return jsonify({'error': 'Valid montant required'}), 400
+
+        if not all([sender_address, recipient_address, transaction_hash]):
+            return jsonify({'error': 'sender_address, recipient_address, transaction_hash required'}), 400
+
+        # Handle image upload
+        image = request.files.get('image')
+        if not image or image.filename == '':
+            return jsonify({'error': 'Payment proof image required'}), 400
+
+        if not image.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            return jsonify({'error': 'Image must be PNG, JPG, or JPEG'}), 400
+
+        # Secure filename and save
+        filename = secure_filename(image.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        upload_folder = 'uploads/proofs'
+        os.makedirs(upload_folder, exist_ok=True)
+        image_path = os.path.join(upload_folder, unique_filename)
+        image.save(image_path)
 
         transaction = Transaction(
             user_id=user_id,
-            action=action,
-            montant=montant,
+            action='recharge',
+            montant=float(montant),
             commentaire=commentaire,
-            date_transaction=date_transaction
+            sender_address=sender_address,
+            recipient_address=recipient_address,
+            transaction_hash=transaction_hash,
+            image_filename=unique_filename,
+            # status defaults to PENDING
         )
         db.session.add(transaction)
         db.session.commit()
+
         return jsonify({
-            'message': 'Transaction added',
+            'message': 'Recharge transaction added (pending approval)',
             'transaction': {
                 'id': transaction.id,
-                'action': action,
                 'montant': float(montant),
                 'commentaire': commentaire,
+                'sender_address': sender_address,
+                'recipient_address': recipient_address,
+                'transaction_hash': transaction_hash,
+                'image_filename': unique_filename,
+                'status': transaction.status.value,
                 'date_transaction': transaction.date_transaction.isoformat()
             }
         }), 201
+
+    @staticmethod
+    def add_gain(user_id):
+        "\"\"Add gain transaction (minimal, status=completed)"""
+        data = request.get_json()
+        montant = data.get('montant')
+        commentaire = data.get('commentaire')
+
+        if not montant or float(montant) <= 0:
+            return jsonify({'error': 'Valid montant required'}), 400
+
+        transaction = Transaction(
+            user_id=user_id,
+            action='gain',
+            montant=float(montant),
+            commentaire=commentaire,
+            status=TransactionStatus.COMPLETED
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        return jsonify({'message': 'Gain added', 'transaction_id': transaction.id}), 201
+
+    @staticmethod
+    def add_retrait(user_id):
+        "\"\"Add retrait transaction (minimal, status=completed)"""
+        data = request.get_json()
+        montant = data.get('montant')
+        commentaire = data.get('commentaire')
+
+        if not montant or float(montant) <= 0:
+            return jsonify({'error': 'Valid montant required'}), 400
+
+        transaction = Transaction(
+            user_id=user_id,
+            action='retrait',
+            montant=float(montant),
+            commentaire=commentaire,
+            status=TransactionStatus.COMPLETED
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        return jsonify({'message': 'Retrait added', 'transaction_id': transaction.id}), 201
 
     @staticmethod
     def get_user_balance_info(user_id):
@@ -59,13 +135,13 @@ class BalanceController:
             return jsonify({'error': 'User not found'}), 404
 
         recharges = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'recharge'
+            Transaction.user_id == user_id, Transaction.action == 'recharge', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         retraits = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'retrait'
+            Transaction.user_id == user_id, Transaction.action == 'retrait', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         gains = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'gain'
+            Transaction.user_id == user_id, Transaction.action == 'gain', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         balance = float(recharges) + float(gains) - float(retraits)
 
@@ -82,7 +158,7 @@ class BalanceController:
     def get_total_earnings(user_id):
         """Total earnings (gains)"""
         total = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'gain'
+            Transaction.user_id == user_id, Transaction.action == 'gain', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         return jsonify({'total_earnings': float(total)}), 200
 

@@ -1,5 +1,3 @@
-import uuid
-
 from app import db, bcrypt
 from datetime import datetime
 import enum
@@ -114,6 +112,10 @@ class Parametre(db.Model):
         return f'<Parametre user={self.id_utilisateur} langue={self.langue} devise={self.devise}>'
 
 
+class TransactionStatus(enum.Enum):
+    PENDING = 'pending'
+    FAILED = 'failed'
+    COMPLETED = 'completed'
 
 class Transaction(db.Model):
     __tablename__ = 'transactions'
@@ -124,6 +126,11 @@ class Transaction(db.Model):
     action = db.Column(db.String(20), nullable=False)  # recharge, retrait, gain
     montant = db.Column(db.Numeric(10, 2), nullable=False)
     commentaire = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.Enum(TransactionStatus), default=TransactionStatus.PENDING, nullable=False)
+    sender_address = db.Column(db.String(255), nullable=True)
+    recipient_address = db.Column(db.String(255), nullable=True)
+    transaction_hash = db.Column(db.String(100), nullable=True)
+    image_filename = db.Column(db.String(255), nullable=True)
 
     user = db.relationship('User', backref='transactions')
 
@@ -215,6 +222,20 @@ class StatProduitBoost(db.Model):
 
     def __repr__(self):
         return f'<StatProduitBoost {self.idStatProduitBoost}>'
+
+class Crypto(db.Model):
+    __tablename__ = 'cryptos'
+
+    idCrypto = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nomCrypto = db.Column(db.String(100), nullable=False)
+    sigleCrypto = db.Column(db.String(20), nullable=False)
+    commentaire = db.Column(db.String(255), nullable=True)
+    adress = db.Column(db.String(500), nullable=False)
+    minDepot = db.Column(db.Numeric(10, 2), nullable=False)
+    isDeleted = db.Column(db.Boolean, default=False, nullable=False)
+
+    def __repr__(self):
+        return f'<Crypto {self.nomCrypto} ({self.sigleCrypto})>'
 
 # Event listeners for ID generation
 @event.listens_for(User, 'before_insert')

@@ -42,12 +42,14 @@ from routes.qualificationRoutes import qualification_bp
 from routes.parametreRoutes import parametre_bp
 from routes.balanceRoutes import balance_bp
 from routes.productRoutes import product_bp
+from routes.cryptoRoutes import crypto_bp
 
 # Register blueprints
 app.register_blueprint(user_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(qualification_bp)
 app.register_blueprint(parametre_bp)
+app.register_blueprint(crypto_bp)
 app.register_blueprint(balance_bp)
 app.register_blueprint(product_bp)
 
