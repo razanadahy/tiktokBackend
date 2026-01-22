@@ -4,7 +4,11 @@ from models import User, Transaction, TransactionStatus
 from datetime import datetime
 import os
 import uuid
+import base64
 from werkzeug.utils import secure_filename
+
+from util.auth_utils import admin_required
+
 
 class BalanceController:
     @staticmethod
@@ -23,9 +27,8 @@ class BalanceController:
         return jsonify({'balance': balance}), 200
 
     @staticmethod
-    def add_transaction(user_id):
+    def add_transaction(user_id): #recharge transaction
 
-        # Check if action is recharge
         data = request.form
 
         montant = data.get('montant')
@@ -51,7 +54,7 @@ class BalanceController:
         # Secure filename and save
         filename = secure_filename(image.filename)
         unique_filename = f"{uuid.uuid4().hex}_{filename}"
-        upload_folder = 'uploads/proofs'
+        upload_folder = 'uploads'
         os.makedirs(upload_folder, exist_ok=True)
         image_path = os.path.join(upload_folder, unique_filename)
         image.save(image_path)
@@ -183,7 +186,7 @@ class BalanceController:
     def get_transaction_history(user_id):
         transactions = Transaction.query.filter(
             Transaction.user_id == user_id
-        ).order_by(Transaction.date_transaction.desc()).limit(30).all()
+        ).order_by(Transaction.date_transaction.desc()).all()
 
         history = []
         for t in transactions:
@@ -198,7 +201,9 @@ class BalanceController:
 
     @staticmethod
     def get_all_transaction_history():
-        transactions = Transaction.query.order_by(Transaction.date_transaction.desc()).limit(30).all()
+        transactions = Transaction.query.filter(
+            Transaction.status == TransactionStatus.COMPLETED
+        ).order_by(Transaction.date_transaction.desc()).limit(30).all()
         history = []
         for t in transactions:
             history.append({
@@ -209,3 +214,53 @@ class BalanceController:
                 'date_transaction': t.date_transaction.isoformat()
             })
         return jsonify({'transactions': history}), 200
+
+    @staticmethod
+    @admin_required
+    def get_all_pending_transactions():
+        """Get all pending transactions (newest first)"""
+        transactions = Transaction.query.filter(
+            Transaction.status == TransactionStatus.PENDING
+        ).order_by(Transaction.date_transaction.desc()).all()
+        history = []
+        for t in transactions:
+            history.append({
+                'id': t.id,
+                'user_id': t.user_id,
+                'action': t.action,
+                'montant': float(t.montant),
+                'commentaire': t.commentaire,
+                'date_transaction': t.date_transaction.isoformat(),
+                'image_filename': t.image_filename
+            })
+        return jsonify({'transactions': history}), 200
+
+
+    @staticmethod
+    def get_transaction_details(transaction_id):
+        """Get detailed transaction info including image URL"""
+        transaction = Transaction.query.filter_by(id=transaction_id).first()
+        if not transaction:
+            return jsonify({'error': 'Transaction not found'}), 404
+
+        # Generate image URL if image exists
+        image_url = None
+        if transaction.image_filename:
+            image_url = f"/api/assets/uploads/proofs/{transaction.image_filename}"
+
+        return jsonify({
+            'transaction': {
+                'id': transaction.id,
+                'user_id': transaction.user_id,
+                'action': transaction.action,
+                'montant': float(transaction.montant),
+                'commentaire': transaction.commentaire,
+                'sender_address': transaction.sender_address,
+                'recipient_address': transaction.recipient_address,
+                'transaction_hash': transaction.transaction_hash,
+                'image_filename': transaction.image_filename,
+                'image_url': image_url,
+                'status': transaction.status.value,
+                'date_transaction': transaction.date_transaction.isoformat()
+            }
+        }), 200

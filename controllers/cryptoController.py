@@ -18,7 +18,7 @@ class CryptoController:
                 'adress': crypto.adress,
                 'minDepot': float(crypto.minDepot)
             })
-        return jsonify({'cryptos': result}), 200
+        return jsonify( result), 200
 
     @staticmethod
     @admin_required

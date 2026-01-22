@@ -120,7 +120,7 @@ class TransactionStatus(enum.Enum):
 class Transaction(db.Model):
     __tablename__ = 'transactions'
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(12), primary_key=True)
     user_id = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
     date_transaction = db.Column(db.DateTime, default=datetime.utcnow)
     action = db.Column(db.String(20), nullable=False)  # recharge, retrait, gain
@@ -237,7 +237,28 @@ class Crypto(db.Model):
     def __repr__(self):
         return f'<Crypto {self.nomCrypto} ({self.sigleCrypto})>'
 
+class ConfigRetrait(db.Model):
+    __tablename__ = 'config_retraits'
+
+    id = db.Column(db.String(12), primary_key=True)
+    userId = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    depositAdress = db.Column(db.String(500), nullable=False)
+    coin = db.Column(db.String(50), nullable=False)
+    reseau = db.Column(db.String(100), nullable=False)
+    dateModif = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref='config_retraits')
+
+    def __repr__(self):
+        return f'<ConfigRetrait {self.id} for user {self.userId}>'
+
 # Event listeners for ID generation
+@event.listens_for(ConfigRetrait, 'before_insert')
+def set_config_retrait_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+# Event listeners for ID generation (existing models)
 @event.listens_for(User, 'before_insert')
 def set_user_id(mapper, connect, target):
     if not target.id:

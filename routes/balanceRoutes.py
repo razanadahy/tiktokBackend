@@ -11,6 +11,7 @@ balance_bp.route('/add/<user_id>', methods=['POST'])(BalanceController.add_trans
 
 # Add gain or retrait (minimal)
 balance_bp.route('/add-gain/<user_id>', methods=['POST'])(BalanceController.add_gain)
+#add retrait
 balance_bp.route('/add-retrait/<user_id>', methods=['POST'])(BalanceController.add_retrait)
 
 # User info + balance
@@ -26,3 +27,5 @@ balance_bp.route('/withdrawals/<user_id>', methods=['GET'])(BalanceController.ge
 balance_bp.route('/history/<user_id>', methods=['GET'])(BalanceController.get_transaction_history)
 
 balance_bp.route('/history', methods=['GET'])(BalanceController.get_all_transaction_history)
+
+balance_bp.route('/admin/pending', methods=['GET'])(BalanceController.get_all_pending_transactions)

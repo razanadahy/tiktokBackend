@@ -43,6 +43,8 @@ from routes.parametreRoutes import parametre_bp
 from routes.balanceRoutes import balance_bp
 from routes.productRoutes import product_bp
 from routes.cryptoRoutes import crypto_bp
+from routes.assetRoutes import asset_bp
+from routes.configRetraitRoutes import configRetrait_bp
 
 # Register blueprints
 app.register_blueprint(user_bp)
@@ -52,6 +54,8 @@ app.register_blueprint(parametre_bp)
 app.register_blueprint(crypto_bp)
 app.register_blueprint(balance_bp)
 app.register_blueprint(product_bp)
+app.register_blueprint(asset_bp)
+app.register_blueprint(configRetrait_bp)
 
 
 @app.before_request
