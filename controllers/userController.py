@@ -27,7 +27,7 @@ class UserController:
                 nom=data['nom'],
                 email=data['email'],
                 mot_de_passe=data['mot_de_passe'],
-                code_parrainage=data.get('code_parrainage')
+                code_parrainage=data.get('referral')
             )
 
             db.session.add(new_user)

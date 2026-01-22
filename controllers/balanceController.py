@@ -195,7 +195,8 @@ class BalanceController:
                 'action': t.action,
                 'montant': float(t.montant),
                 'commentaire': t.commentaire,
-                'date_transaction': t.date_transaction.isoformat()
+                'date_transaction': t.date_transaction.isoformat(),
+                'status': t.status.value
             })
         return jsonify({'transactions': history}), 200
 
