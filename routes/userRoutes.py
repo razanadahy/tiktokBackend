@@ -23,3 +23,6 @@ user_bp.route('/<user_id>/password', methods=['PUT'])(UserController.change_pass
 
 # Get current user from token
 user_bp.route('/me', methods=['GET'])(UserController.get_current_user)
+
+#Check Password
+user_bp.route('/me/<user_id>', methods=['POST'])(UserController.check_password)

@@ -1,6 +1,6 @@
 from app import app, db
 import pymysql
-from models import Admin, User, Qualification, Revendeur, Produit
+from models import Admin, User, Qualification, Revendeur, Produit, MinRetrait
 
 # Create database if it doesn't exist
 def create_database():
@@ -65,6 +65,23 @@ def create_produit_seed():
                 print("Default Produit created: iPhone 15 Pro")
             else:
                 print("No revendeur found for produit seed")
+
+# Create default minRetrait
+def create_min_retrait():
+    with app.app_context():
+        # Check if minRetrait already exists
+        existing_min_retrait = MinRetrait.query.first()
+        if not existing_min_retrait:
+            min_retrait = MinRetrait(
+                montant_min=1.00
+                # dateModif will be set automatically by default
+            )
+            db.session.add(min_retrait)
+            db.session.commit()
+            print(f"Default MinRetrait created: {min_retrait.montant_min}")
+        else:
+            print(f"MinRetrait already exists: {existing_min_retrait.montant_min}")
+
 # Create default admin
 def create_default_admin():
     with app.app_context():
@@ -111,5 +128,8 @@ if __name__ == '__main__':
 
     # Seed Produit
     create_produit_seed()
+
+    # Seed MinRetrait
+    create_min_retrait()
 
     print("\nDatabase initialization complete!")

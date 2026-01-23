@@ -8,3 +8,6 @@ parametre_bp.route('/user/<user_id>', methods=['GET'])(ParametreController.get_u
 
 # Update user's parametre
 parametre_bp.route('/user/<user_id>', methods=['PUT'])(ParametreController.update_user_parametre)
+
+# Update min retrait
+parametre_bp.route('/min-retrait', methods=['PUT'])(ParametreController.update_min_retrait)

@@ -237,3 +237,28 @@ class UserController:
 
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    def check_password(user_id):
+        data = request.get_json()
+
+        required_fields = data.get('mdp')
+
+        if not required_fields:
+            return jsonify({'error': f'Missing required field'}), 400
+
+        if UserController.check_realPass(user_id, required_fields):
+            return jsonify({
+                'message': 'ok'
+            }), 200
+        return jsonify({'error': f'Missing required field'}), 400
+
+    @staticmethod
+    def check_realPass(user_id, mdp):
+        user = User.query.filter_by(id=user_id).first()
+        if not user:
+            return False
+
+        if not user.check_password(mdp):
+            return False
+        return True

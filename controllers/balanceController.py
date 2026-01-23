@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from app import db
-from models import User, Transaction, TransactionStatus
+from controllers.userController import UserController
+from models import User, Transaction, TransactionStatus, MinRetrait
 from datetime import datetime
 import os
 import uuid
@@ -18,13 +19,29 @@ class BalanceController:
             Transaction.user_id == user_id, Transaction.action == 'recharge', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         retraits = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'retrait', Transaction.status == TransactionStatus.COMPLETED
+            Transaction.user_id == user_id, Transaction.action == 'retrait', Transaction.status != TransactionStatus.FAILED
         ).scalar() or 0
         gains = db.session.query(db.func.sum(Transaction.montant)).filter(
             Transaction.user_id == user_id, Transaction.action == 'gain', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         balance = float(recharges) + float(gains) - float(retraits)
         return jsonify({'balance': balance}), 200
+
+    @staticmethod
+    def add_gain(user_id, montant, commentaire):
+        try:
+            transaction = Transaction(
+                user_id=user_id,
+                action='gain',
+                montant=float(montant),
+                commentaire=commentaire,
+                status=TransactionStatus.COMPLETED
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            return True
+        except:
+            return False
 
     @staticmethod
     def add_transaction(user_id): #recharge transaction
@@ -73,6 +90,10 @@ class BalanceController:
         db.session.add(transaction)
         db.session.commit()
 
+        user = User.query.filter_by(id=user_id).first()
+        if user.code_parrainage:
+            BalanceController.add_gain(user.code_parrainage, 0.5*float(montant), user.email)
+
         return jsonify({
             'message': 'Recharge transaction added (pending approval)',
             'transaction': {
@@ -115,20 +136,30 @@ class BalanceController:
         data = request.get_json()
         montant = data.get('montant')
         commentaire = data.get('commentaire')
+        mdp = data.get('mdp')
 
-        if not montant or float(montant) <= 0:
+        minRetrait = MinRetrait.query.first()
+
+        dat = minRetrait.montant_min
+        if not minRetrait.montant_min:
+            dat = 1
+
+        if not montant or float(montant) < dat:
             return jsonify({'error': 'Valid montant required'}), 400
 
-        transaction = Transaction(
-            user_id=user_id,
-            action='retrait',
-            montant=float(montant),
-            commentaire=commentaire,
-            status=TransactionStatus.COMPLETED
-        )
-        db.session.add(transaction)
-        db.session.commit()
-        return jsonify({'message': 'Retrait added', 'transaction_id': transaction.id}), 201
+        if UserController.check_realPass(user_id, mdp):
+            transaction = Transaction(
+                user_id=user_id,
+                action='retrait',
+                montant=float(montant),
+                commentaire=commentaire,
+                status=TransactionStatus.PENDING
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            return jsonify({'message': 'Retrait added', 'transaction_id': transaction.id}), 201
+
+        return jsonify({'error': f'Missing required field'}), 400
 
     @staticmethod
     def get_user_balance_info(user_id):
@@ -141,7 +172,7 @@ class BalanceController:
             Transaction.user_id == user_id, Transaction.action == 'recharge', Transaction.status == TransactionStatus.COMPLETED
         ).scalar() or 0
         retraits = db.session.query(db.func.sum(Transaction.montant)).filter(
-            Transaction.user_id == user_id, Transaction.action == 'retrait', Transaction.status == TransactionStatus.COMPLETED
+            Transaction.user_id == user_id, Transaction.action == 'retrait', Transaction.status != TransactionStatus.FAILED
         ).scalar() or 0
         gains = db.session.query(db.func.sum(Transaction.montant)).filter(
             Transaction.user_id == user_id, Transaction.action == 'gain', Transaction.status == TransactionStatus.COMPLETED
@@ -169,7 +200,7 @@ class BalanceController:
     def get_withdrawal_history(user_id):
         """Withdrawal history, newest first"""
         withdrawals = Transaction.query.filter(
-            Transaction.user_id == user_id, Transaction.action != 'gain'
+            Transaction.user_id == user_id, Transaction.action == 'retrait'
         ).order_by(Transaction.date_transaction.desc()).all()
 
         history = []
@@ -178,7 +209,9 @@ class BalanceController:
                 'id': t.id,
                 'montant': float(t.montant),
                 'commentaire': t.commentaire,
-                'date_transaction': t.date_transaction.isoformat()
+                'date_transaction': t.date_transaction.isoformat(),
+                'status': t.status.value,
+                'action': t.action,
             })
         return jsonify({'withdrawals': history}), 200
 

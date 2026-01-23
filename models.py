@@ -252,6 +252,18 @@ class ConfigRetrait(db.Model):
     def __repr__(self):
         return f'<ConfigRetrait {self.id} for user {self.userId}>'
 
+
+class MinRetrait(db.Model):
+    __tablename__ = 'min_retraits'
+
+    id = db.Column(db.String(12), primary_key=True)
+    montant_min = db.Column(db.Numeric(10, 2), nullable=False)
+    dateModif = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MinRetrait {self.coin} {self.montant_min} {self.devise}>'
+
+
 # Event listeners for ID generation
 @event.listens_for(ConfigRetrait, 'before_insert')
 def set_config_retrait_id(mapper, connect, target):
@@ -312,6 +324,11 @@ def set_parametre_id(mapper, connect, target):
 
 @event.listens_for(Transaction, 'before_insert')
 def set_transaction_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
+
+@event.listens_for(MinRetrait, 'before_insert')
+def set_min_retrait_id(mapper, connect, target):
     if not target.id:
         target.id = generate_id()
 
