@@ -10,7 +10,7 @@ balance_bp.route('/<user_id>', methods=['GET'])(BalanceController.get_balance)
 balance_bp.route('/add/<user_id>', methods=['POST'])(BalanceController.add_transaction)
 
 # Add gain or retrait (minimal)
-balance_bp.route('/add-gain/<user_id>', methods=['POST'])(BalanceController.add_gain)
+balance_bp.route('/add-gain/<user_id>', methods=['POST'])(BalanceController.tapitraProduit)
 #add retrait
 balance_bp.route('/add-retrait/<user_id>', methods=['POST'])(BalanceController.add_retrait)
 
@@ -27,5 +27,7 @@ balance_bp.route('/withdrawals/<user_id>', methods=['GET'])(BalanceController.ge
 balance_bp.route('/history/<user_id>', methods=['GET'])(BalanceController.get_transaction_history)
 
 balance_bp.route('/history', methods=['GET'])(BalanceController.get_all_transaction_history)
+
+balance_bp.route('/parrainage/<user_id>', methods=['GET'])(BalanceController.getParainnage)
 
 balance_bp.route('/admin/pending', methods=['GET'])(BalanceController.get_all_pending_transactions)

@@ -1,9 +1,7 @@
 import jwt
 import functools
 from flask import request, jsonify, current_app
-from app import db
 from models import Admin
-from config import Config
 
 def admin_required(f):
     @functools.wraps(f)

@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from app import db
+from extension import db
 from models import Crypto
 from util.auth_utils import admin_required
 

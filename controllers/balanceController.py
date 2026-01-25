@@ -1,14 +1,13 @@
 from flask import jsonify, request
-from app import db
+from extension import db
 from controllers.userController import UserController
-from models import User, Transaction, TransactionStatus, MinRetrait
-from datetime import datetime
+from models import User, Transaction, TransactionStatus, MinRetrait, Parrainage
 import os
 import uuid
-import base64
 from werkzeug.utils import secure_filename
 
 from util.auth_utils import admin_required
+from utils import generate_id
 
 
 class BalanceController:
@@ -28,26 +27,35 @@ class BalanceController:
         return jsonify({'balance': balance}), 200
 
     @staticmethod
-    def add_gain(user_id, montant, commentaire):
+    def add_gain(user_id, montant, commentaire, idNewUser):
         try:
+            generatedID= generate_id()
             transaction = Transaction(
+                id = generatedID,
                 user_id=user_id,
                 action='gain',
                 montant=float(montant),
                 commentaire=commentaire,
-                status=TransactionStatus.COMPLETED
+                status=TransactionStatus.PENDING
             )
             db.session.add(transaction)
+            parrainage = Parrainage(
+                idTransaction = generatedID,
+                idNewUser = idNewUser,
+                idOldUser = user_id,
+                montant=  montant
+            )
+            db.session.add(parrainage)
             db.session.commit()
             return True
         except:
+            pass
             return False
 
     @staticmethod
     def add_transaction(user_id): #recharge transaction
 
         data = request.form
-
         montant = data.get('montant')
         commentaire = data.get('commentaire')
         sender_address = data.get('sender_address')
@@ -69,11 +77,12 @@ class BalanceController:
             return jsonify({'error': 'Image must be PNG, JPG, or JPEG'}), 400
 
         # Secure filename and save
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+        os.makedirs(log_dir, exist_ok=True)
         filename = secure_filename(image.filename)
         unique_filename = f"{uuid.uuid4().hex}_{filename}"
-        upload_folder = 'uploads'
-        os.makedirs(upload_folder, exist_ok=True)
-        image_path = os.path.join(upload_folder, unique_filename)
+
+        image_path = os.path.join(log_dir, unique_filename)
         image.save(image_path)
 
         transaction = Transaction(
@@ -92,7 +101,7 @@ class BalanceController:
 
         user = User.query.filter_by(id=user_id).first()
         if user.code_parrainage:
-            BalanceController.add_gain(user.code_parrainage, 0.5*float(montant), user.email)
+            BalanceController.add_gain(user.code_parrainage, 0.1*float(montant), "Parrainage", user_id)
 
         return jsonify({
             'message': 'Recharge transaction added (pending approval)',
@@ -110,7 +119,7 @@ class BalanceController:
         }), 201
 
     @staticmethod
-    def add_gain(user_id):
+    def tapitraProduit(user_id):
         "\"\"Add gain transaction (minimal, status=completed)"""
         data = request.get_json()
         montant = data.get('montant')
@@ -298,3 +307,23 @@ class BalanceController:
                 'date_transaction': transaction.date_transaction.isoformat()
             }
         }), 200
+
+    @staticmethod
+    def getParainnage(user_id):
+        parrainages = Parrainage.query.filter_by(idOldUser=user_id).all()
+
+        result = []
+        for parrainage in parrainages:
+            if parrainage.new_user:
+                result.append({
+                    'id': parrainage.idParainnage,
+                    'idNewUser': parrainage.idNewUser,
+                    'nom': parrainage.new_user.nom,
+                    'email': parrainage.new_user.email,
+                    'montant': float(parrainage.montant),
+                    'statut': parrainage.statut.value,
+                    'date': parrainage.date.isoformat() if parrainage.date else None,
+                    'idTransaction': parrainage.idTransaction
+                })
+
+        return jsonify({'parrainages': result}), 200

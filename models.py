@@ -1,4 +1,4 @@
-from app import db, bcrypt
+from extension import db, bcrypt
 from datetime import datetime
 import enum
 from utils import generate_id
@@ -263,12 +263,31 @@ class MinRetrait(db.Model):
     def __repr__(self):
         return f'<MinRetrait {self.coin} {self.montant_min} {self.devise}>'
 
+class Parrainage(db.Model):
+    __tablename__ = 'parrainages'
+
+    idParainnage = db.Column(db.String(12), primary_key=True)
+    idTransaction = db.Column(db.String(12), db.ForeignKey('transactions.id'), nullable=False)
+    idNewUser = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    idOldUser = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    statut = db.Column(db.Enum(TransactionStatus), default=TransactionStatus.PENDING, nullable=False)
+    montant = db.Column(db.Numeric(10, 2), nullable=False)
+
+    # Relationships
+    transaction = db.relationship('Transaction', backref='parrainages')
+    new_user = db.relationship('User', foreign_keys=[idNewUser])
+    old_user = db.relationship('User', foreign_keys=[idOldUser])
+
+    def __repr__(self):
+        return f'<Parrainage {self.idParainnage} {self.montant}>'
+
 
 # Event listeners for ID generation
-@event.listens_for(ConfigRetrait, 'before_insert')
-def set_config_retrait_id(mapper, connect, target):
-    if not target.id:
-        target.id = generate_id()
+@event.listens_for(Parrainage, 'before_insert')
+def set_parrainage_id(mapper, connect, target):
+    if not target.idParainnage:
+        target.idParainnage = generate_id()
 
 # Event listeners for ID generation (existing models)
 @event.listens_for(User, 'before_insert')
@@ -285,6 +304,11 @@ def set_revendeur_id(mapper, connect, target):
 def set_produit_id(mapper, connect, target):
     if not target.idProduit:
         target.idProduit = generate_id()
+
+@event.listens_for(ConfigRetrait, 'before_insert')
+def set_produit_id(mapper, connect, target):
+    if not target.id:
+        target.id = generate_id()
 
 @event.listens_for(Commande, 'before_insert')
 def set_commande_id(mapper, connect, target):

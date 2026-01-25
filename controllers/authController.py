@@ -1,14 +1,23 @@
-import time
+import os
 import logging
 import jwt
 from datetime import datetime, timedelta, timezone
 from flask import jsonify, request, current_app
-from app import db, limiter
+from extension import db, limiter
 from models import User, Admin
 
-# Configuration du logging
-logging.basicConfig(filename='login_attempts.log', level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
+log_file = os.path.join(log_dir, 'logFile.log')
+
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
 
 
 class AuthController:

@@ -1,18 +1,13 @@
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask import request
 from config import Config
 import jwt
-from functools import wraps
+from extension import db, bcrypt, limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 app.config.from_object(Config)
-db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
 CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -21,19 +16,14 @@ CORS(app, resources={
         "expose_headers": ["Link"]
     }
 })
-
+db.init_app(app)
+bcrypt.init_app(app)
+limiter.init_app(app)
 # Rate limiting configuration
 def rate_limit_key():
     if request.method == 'OPTIONS':
         return None  # Skip rate limiting for CORS preflight
     return get_remote_address()
-
-limiter = Limiter(
-    app=app,
-    key_func=rate_limit_key,
-    default_limits=["1000 per day", "200 per hour"],
-    storage_uri="memory://"
-)
 
 # Import routes after app initialization
 from routes.userRoutes import user_bp

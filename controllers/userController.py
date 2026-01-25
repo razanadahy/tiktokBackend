@@ -1,7 +1,6 @@
 from flask import jsonify, request
-from app import db
 from models import User, Qualification, UtilisateurQualification, Parametre
-
+from extension import db
 
 class UserController:
 

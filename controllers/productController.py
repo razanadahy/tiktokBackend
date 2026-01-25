@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from app import db
+from extension import db
 from models import Revendeur, Produit, Commande, CommandeStatut, Boost, StatProduitBoost, StatProduitBoostStatut, StatProduitBoostTypePreuve, User
 from utils import generate_id
 from datetime import datetime

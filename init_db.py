@@ -7,7 +7,7 @@ def create_database():
     try:
         connection = pymysql.connect(
             host='localhost',
-            user='adr',
+            user='root',
             password='Niavo jr171102!',
             port=3306
         )
