@@ -35,6 +35,7 @@ from routes.productRoutes import product_bp
 from routes.cryptoRoutes import crypto_bp
 from routes.assetRoutes import asset_bp
 from routes.configRetraitRoutes import configRetrait_bp
+from routes.adminRoutes import admin_bp
 
 # Register blueprints
 app.register_blueprint(user_bp)
@@ -46,17 +47,16 @@ app.register_blueprint(balance_bp)
 app.register_blueprint(product_bp)
 app.register_blueprint(asset_bp)
 app.register_blueprint(configRetrait_bp)
+app.register_blueprint(admin_bp)
 
 
 @app.before_request
 def check_token_middleware():
-    """Verify JWT token for all routes except login and static/public endpoints"""
 
-    # List of endpoints to exclude from token verification
     excluded_endpoints = [
         'auth.login_user',
         'auth.login_admin',
-        'user.create_user',  # User registration endpoint
+        'user.create_user',
         'static'
     ]
 

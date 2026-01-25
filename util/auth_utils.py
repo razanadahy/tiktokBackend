@@ -13,8 +13,9 @@ def admin_required(f):
         try:
             token = auth_header.split(' ')[1]
             payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-            admin_id = payload.get('id')  # Assume JWT has 'id' for admin
+            admin_id = payload.get('admin_id')
             admin = Admin.query.filter_by(id=admin_id).first()
+            print(admin, token, admin_id)
             if not admin:
                 return jsonify({'error': 'Admin access denied'}), 403
             # Attach admin to request for use in function if needed
