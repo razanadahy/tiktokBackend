@@ -174,6 +174,11 @@ class StatProduitBoostStatut(enum.Enum):
     EN_COURS = 'en cours'
     TERMINEE = 'terminé'
 
+class BoostStatut(enum.Enum):
+    EN_COURS = 'en cours'
+    A_VALIDE = 'en cours'
+    TERMINEE = 'terminé'
+
 class StatProduitBoostTypePreuve(enum.Enum):
     LIEN = 'lien'
     SCREENSHOT = 'screenshot'
@@ -189,11 +194,10 @@ class Commande(db.Model):
     cout = db.Column(db.Numeric(10,2))
     tableauProduit = db.Column(db.JSON)
     statut = db.Column(db.Enum(CommandeStatut))
-    user_id = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
-    user = db.relationship('User')
 
     def __repr__(self):
         return f'<Commande {self.idCommande}>'
+
 
 class Boost(db.Model):
     __tablename__ = 'boosts'
@@ -204,6 +208,7 @@ class Boost(db.Model):
     commande = db.relationship('Commande')
     user = db.relationship('User')
     stats = db.relationship('StatProduitBoost', back_populates='boost')
+    statut = db.Column(db.Enum(BoostStatut), default=BoostStatut.A_VALIDE)
 
     def __repr__(self):
         return f'<Boost {self.idBoost}>'
