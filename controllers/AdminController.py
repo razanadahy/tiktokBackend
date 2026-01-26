@@ -41,6 +41,91 @@ class AdminController:
 
     @staticmethod
     @admin_required
+    def get_dashboard_finance():
+        """Get finance stats for today (recharge and retrait)"""
+        try:
+            from datetime import datetime, time
+            from sqlalchemy import func
+
+            # Get start of today
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+            # Query transactions for today, filter by recharge/retrait
+            transactions = Transaction.query.filter(
+                Transaction.date_transaction >= today_start,
+                Transaction.action.in_(['recharge', 'retrait'])
+            ).all()
+
+            tx_data = []
+            total_recharge = 0
+            total_retrait = 0
+
+            for tx in transactions:
+                if tx.status == TransactionStatus.COMPLETED:
+                    if tx.action == 'recharge':
+                        total_recharge += float(tx.montant)
+                    elif tx.action == 'retrait':
+                        total_retrait += float(tx.montant)
+
+                tx_data.append({
+                    "id": tx.id,
+                    "user": tx.user.nom if tx.user else "Unknown",
+                    "idUser": tx.user.id if tx.user else "Unknown",
+                    "type": tx.action,
+                    "amount": float(tx.montant),
+                    "date": tx.date_transaction.strftime('%Y-%m-%d %H:%M:%S'),
+                    "status": tx.status.value if hasattr(tx.status, 'value') else str(tx.status)
+                })
+
+            return jsonify({
+                "total_transaction": len(tx_data),
+                "total_recharge": total_recharge,
+                "total_retrait": total_retrait,
+                "transactions": tx_data
+            }), 200
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    @admin_required
+    def get_dashboard_boosts():
+        """Get completed boosts for today"""
+        try:
+            from datetime import datetime
+            from models import Commande
+
+            # Get start of today
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+            # Query boosts that are completed and joined with Commande date today
+            # The date to check is in Commande table
+            boosts = Boost.query.filter(
+                Boost.statut == BoostStatut.TERMINEE,
+                Boost.date >= today_start
+            ).all()
+
+            boost_data = []
+
+            for boost in boosts:
+                boost_data.append({
+                    "id": boost.idBoost,
+                    "user": boost.user.nom if boost.user else "Unknown",
+                    "commande_code": boost.commande.code if boost.commande else "Unknown",
+                    "commission": float(boost.commande.commission_total) if (boost.commande and boost.commande.commission_total) else 0.0,
+                    "date": boost.date.strftime('%Y-%m-%d %H:%M:%S')
+                })
+
+            return jsonify({
+                "total_boosts": len(boost_data),
+                "boosts": boost_data
+            }), 200
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    @admin_required
     def update_profile():
         """Update admin profile (email, password)"""
         data = request.get_json()

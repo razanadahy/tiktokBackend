@@ -1,13 +1,35 @@
-from flask import jsonify, request
-from extension import db
-from models import Revendeur, Produit, Commande, CommandeStatut, Boost, StatProduitBoost, StatProduitBoostStatut, StatProduitBoostTypePreuve, User
-from utils import generate_id
-from datetime import datetime
+import os
+import uuid
 import secrets
 import json
+from datetime import datetime
+from flask import jsonify, request, current_app
+from werkzeug.utils import secure_filename
+from extension import db
+from models import Revendeur, Produit, Commande, CommandeStatut, Boost, StatProduitBoost, StatProduitBoostStatut, StatProduitBoostTypePreuve, User
+from util.auth_utils import admin_required
+from utils import generate_id
 
 class ProductController:
     @staticmethod
+    @admin_required
+    def get_all_revendeurs():
+        """Get all revendeurs"""
+        try:
+            revendeurs = Revendeur.query.all()
+            output = []
+            for r in revendeurs:
+                output.append({
+                    'id': r.id,
+                    'nom': r.nom,
+                    'plateforme': r.plateforme
+                })
+            return jsonify({'revendeurs': output}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    @admin_required
     def create_revendeur():
         """Create revendeur"""
         try:
@@ -36,30 +58,103 @@ class ProductController:
             return jsonify({'error': str(e)}), 500
 
     @staticmethod
-    def create_produit():
-        """Create produit"""
+    @admin_required
+    def update_revendeur(idRevendeur):
+        """Update revendeur"""
         try:
             data = request.get_json()
-            required = ['nom_produit', 'prix', 'commission', 'revendeur_id']
-            for field in required:
-                if field not in data:
-                    return jsonify({'error': f'Missing {field}'}), 400
-
-            # Check revendeur exists
-            revendeur = Revendeur.query.filter_by(id=data['revendeur_id']).first()
+            revendeur = Revendeur.query.filter_by(id=idRevendeur).first()
             if not revendeur:
                 return jsonify({'error': 'Revendeur not found'}), 404
 
+            if 'nom' in data:
+                revendeur.nom = data['nom']
+            if 'plateforme' in data:
+                revendeur.plateforme = data['plateforme']
+
+            db.session.commit()
+            return jsonify({
+                'message': 'Revendeur updated',
+                'revendeur': {
+                    'id': revendeur.id,
+                    'nom': revendeur.nom,
+                    'plateforme': revendeur.plateforme
+                }
+            }), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    @admin_required
+    def delete_revendeur(idRevendeur):
+        """Delete revendeur"""
+        try:
+            revendeur = Revendeur.query.filter_by(id=idRevendeur).first()
+            if not revendeur:
+                return jsonify({'error': 'Revendeur not found'}), 404
+
+            db.session.delete(revendeur)
+            db.session.commit()
+            return jsonify({'message': 'Revendeur deleted'}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    @admin_required
+    def create_produit():
+        """Create produit with image upload"""
+        try:
+            # Handle multipart/form-data
+            if 'image_produit' not in request.files:
+                return jsonify({'error': 'Missing image_produit file'}), 400
+
+            file = request.files['image_produit']
+            if file.filename == '':
+                return jsonify({'error': 'No selected file'}), 400
+
+            # Get form data
+            nom_produit = request.form.get('nom_produit')
+            prix = request.form.get('prix')
+            commission = request.form.get('commission')
+            revendeur_id = request.form.get('revendeur_id')
+            description_produit = request.form.get('description_produit')
+            linkProduit = request.form.get('linkProduit')
+
+            required = [nom_produit, prix, commission, revendeur_id]
+            if not all(required):
+                return jsonify({'error': 'Missing required fields (nom_produit, prix, commission, revendeur_id)'}), 400
+
+            # Check revendeur exists
+            revendeur = Revendeur.query.filter_by(id=revendeur_id).first()
+            if not revendeur:
+                return jsonify({'error': 'Revendeur not found'}), 404
+
+            # Save file with UUID name
+            filename = secure_filename(file.filename)
+            file_ext = os.path.splitext(filename)[1]
+            unique_filename = f"{uuid.uuid4()}{file_ext}"
+
+            upload_folder = os.path.join(current_app.root_path, 'uploads')
+            if not os.path.exists(upload_folder):
+                os.makedirs(upload_folder)
+
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+
             produit = Produit(
-                nom_produit=data['nom_produit'],
-                prix=data['prix'],
-                commission=data['commission'],
-                revendeur_id=data['revendeur_id'],
-                image_produit=data.get('image_produit'),
-                linkProduit=data.get('linkProduit')
+                nom_produit=nom_produit,
+                prix=prix,
+                commission=commission,
+                revendeur_id=revendeur_id,
+                image_produit=unique_filename,
+                description_produit=description_produit,
+                linkProduit=linkProduit
             )
             db.session.add(produit)
             db.session.commit()
+
             return jsonify({
                 'message': 'Produit created',
                 'produit': {
@@ -67,7 +162,10 @@ class ProductController:
                     'nom_produit': produit.nom_produit,
                     'prix': float(produit.prix),
                     'commission': float(produit.commission),
-                    'revendeur_id': produit.revendeur_id
+                    'revendeur_id': produit.revendeur_id,
+                    'image_produit': produit.image_produit,
+                    'description_produit': produit.description_produit,
+                    'linkProduit': produit.linkProduit
                 }
             }), 201
         except Exception as e:

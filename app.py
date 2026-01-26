@@ -57,7 +57,8 @@ def check_token_middleware():
         'auth.login_user',
         'auth.login_admin',
         'user.create_user',
-        'static'
+        'static',
+        'assets.*.*'
     ]
 
     # Skip auth for OPTIONS and excluded endpoints

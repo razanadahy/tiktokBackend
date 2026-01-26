@@ -7,7 +7,7 @@ def create_database():
     try:
         connection = pymysql.connect(
             host='localhost',
-            user='root',
+            user='adr',
             password='Niavo jr171102!',
             port=3306
         )
@@ -118,6 +118,7 @@ def create_qualifications():
                 print(f"  - {q.nom} (valeur={q.valeur})")
 
 if __name__ == '__main__':
+    print("executé...")
     create_database()
     create_tables()
     create_qualifications()

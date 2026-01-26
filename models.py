@@ -209,6 +209,7 @@ class Boost(db.Model):
     user = db.relationship('User')
     stats = db.relationship('StatProduitBoost', back_populates='boost')
     statut = db.Column(db.Enum(BoostStatut), default=BoostStatut.A_VALIDE)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f'<Boost {self.idBoost}>'
