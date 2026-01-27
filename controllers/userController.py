@@ -1,6 +1,9 @@
 from flask import jsonify, request
-from models import User, Qualification, UtilisateurQualification, Parametre
+from models import User, Qualification, UtilisateurQualification, Parametre, ConfigRetrait, Transaction, TransactionStatus
 from extension import db
+from sqlalchemy import func
+from util.auth_utils import admin_required
+
 
 class UserController:
 
@@ -72,6 +75,7 @@ class UserController:
             return jsonify({'error': str(e)}), 500
 
     @staticmethod
+    @admin_required
     def get_all_users():
         """Get all users"""
         try:
@@ -79,16 +83,45 @@ class UserController:
             users_list = []
 
             for user in users:
+                # config_retrait: null si absent
+                config_retrait = None
+                config = ConfigRetrait.query.filter_by(userId=user.id).first()
+                if config:
+                    config_retrait = {
+                        'depositAdress': config.depositAdress,
+                        'coin': config.coin,
+                        'reseau': config.reseau
+                    }
+
+                # balance: recharges + gains - retraits (logique exacte de balanceController.get_balance)
+                recharges = db.session.query(func.sum(Transaction.montant)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.action == 'recharge',
+                    Transaction.status == TransactionStatus.COMPLETED
+                ).scalar() or 0
+                retraits = db.session.query(func.sum(Transaction.montant)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.action == 'retrait',
+                    Transaction.status != TransactionStatus.FAILED
+                ).scalar() or 0
+                gains = db.session.query(func.sum(Transaction.montant)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.action == 'gain',
+                    Transaction.status == TransactionStatus.COMPLETED
+                ).scalar() or 0
+                balance = float(recharges) + float(gains) - float(retraits)
+
                 users_list.append({
                     'id': user.id,
                     'nom': user.nom,
                     'email': user.email,
                     'code_parrainage': user.code_parrainage,
-                    'created_at': user.created_at.isoformat()
+                    'created_at': user.created_at.isoformat(),
+                    'config_retrait': config_retrait,  # null si pas de ConfigRetrait
+                    'balance': balance  # 0.0 si pas de transactions
                 })
 
             return jsonify({'users': users_list}), 200
-
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 

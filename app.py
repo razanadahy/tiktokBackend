@@ -36,6 +36,7 @@ from routes.cryptoRoutes import crypto_bp
 from routes.assetRoutes import asset_bp
 from routes.configRetraitRoutes import configRetrait_bp
 from routes.adminRoutes import admin_bp
+from routes.transactionsRoutes import transactions_bp
 
 # Register blueprints
 app.register_blueprint(user_bp)
@@ -48,6 +49,7 @@ app.register_blueprint(product_bp)
 app.register_blueprint(asset_bp)
 app.register_blueprint(configRetrait_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(transactions_bp)
 
 
 @app.before_request
@@ -57,12 +59,11 @@ def check_token_middleware():
         'auth.login_user',
         'auth.login_admin',
         'user.create_user',
-        'static',
-        'assets.*.*'
+        'static'
     ]
 
     # Skip auth for OPTIONS and excluded endpoints
-    if request.method == 'OPTIONS' or request.endpoint in excluded_endpoints:
+    if request.method == 'OPTIONS' or request.endpoint in excluded_endpoints or request.blueprint == 'assets':
         return None
 
     # Get token from header

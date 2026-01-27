@@ -16,3 +16,9 @@ admin_bp.route('/dashboard-boosts', methods=['GET'])(AdminController.get_dashboa
 # Admin profile (GET/PUT)
 admin_bp.route('/profile', methods=['PUT'])(AdminController.update_profile)
 
+# Transaction normal (recharge/retrait list)
+admin_bp.route('/transactionNormal', methods=['GET'])(AdminController.transaction_normal)
+
+# Transaction parrainage
+admin_bp.route('/transactionParrainage', methods=['GET'])(AdminController.transactionParrainage)
+

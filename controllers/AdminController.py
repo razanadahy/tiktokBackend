@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from models import Admin, User, Boost, Transaction, TransactionStatus
+from models import Admin, User, Boost, Transaction, TransactionStatus, Parrainage
 from extension import db
 from util.auth_utils import admin_required
 from models import BoostStatut
@@ -166,4 +166,61 @@ class AdminController:
             }), 200
         except Exception as e:
             db.session.rollback()
+
+    @staticmethod
+    @admin_required
+    def transaction_normal():
+        try:
+            transactions = Transaction.query.filter(
+                Transaction.action.in_(['recharge', 'retrait'])
+            ).order_by(Transaction.date_transaction.desc()).all()
+
+            tx_data = []
+            for tx in transactions:
+                user = tx.user
+                tx_data.append({
+                    "idtransaction": tx.id,
+                    "userId": tx.user_id,
+                    "userName": user.nom if user else "Unknown",
+                    "userEmail": user.email if user else "Unknown",
+                    "date": tx.date_transaction.strftime('%Y-%m-%d %H:%M:%S'),
+                    "type": tx.action,
+                    "valeur": float(tx.montant),
+                    "status": tx.status.value,
+                    "proof_image": tx.image_filename,
+                    "transaction_hash": tx.transaction_hash,
+                    "sender_address": tx.sender_address,
+                    "recipient_address": tx.recipient_address
+                })
+
+            return jsonify({
+                "transactions": tx_data
+            }), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    @admin_required
+    def transactionParrainage():
+        try:
+            parrainages = Parrainage.query.order_by(Parrainage.date.desc()).all()
+
+            tx_data = []
+            for p in parrainages:
+                old_user = p.old_user
+                tx_data.append({
+                    "idtransaction": p.idParainnage,
+                    "userId": p.idOldUser,
+                    "userName": old_user.nom if old_user else "Unknown",
+                    "userEmail": old_user.email if old_user else "Unknown",
+                    "date": p.date.strftime('%Y-%m-%d %H:%M:%S') if p.date else None,
+                    "type": "gain",
+                    "valeur": float(p.montant),
+                    "status": p.statut.value if hasattr(p.statut, 'value') else str(p.statut)
+                })
+
+            return jsonify({
+                "transactions": tx_data
+            }), 200
+        except Exception as e:
             return jsonify({'error': str(e)}), 500
