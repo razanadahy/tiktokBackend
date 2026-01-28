@@ -194,6 +194,7 @@ class Commande(db.Model):
     cout = db.Column(db.Numeric(10,2))
     tableauProduit = db.Column(db.JSON)
     statut = db.Column(db.Enum(CommandeStatut))
+    image = db.Column(db.String(255), nullable=True)
 
     def __repr__(self):
         return f'<Commande {self.idCommande}>'

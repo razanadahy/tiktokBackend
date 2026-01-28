@@ -75,6 +75,25 @@ class UserController:
             return jsonify({'error': str(e)}), 500
 
     @staticmethod
+    def get_balance(user_id):
+        recharges = db.session.query(func.sum(Transaction.montant)).filter(
+            Transaction.user_id == user_id,
+            Transaction.action == 'recharge',
+            Transaction.status == TransactionStatus.COMPLETED
+        ).scalar() or 0
+        retraits = db.session.query(func.sum(Transaction.montant)).filter(
+            Transaction.user_id == user_id,
+            Transaction.action == 'retrait',
+            Transaction.status != TransactionStatus.FAILED
+        ).scalar() or 0
+        gains = db.session.query(func.sum(Transaction.montant)).filter(
+            Transaction.user_id == user_id,
+            Transaction.action == 'gain',
+            Transaction.status == TransactionStatus.COMPLETED
+        ).scalar() or 0
+        return  float(recharges) + float(gains) - float(retraits)
+
+    @staticmethod
     @admin_required
     def get_all_users():
         """Get all users"""
@@ -93,23 +112,7 @@ class UserController:
                         'reseau': config.reseau
                     }
 
-                # balance: recharges + gains - retraits (logique exacte de balanceController.get_balance)
-                recharges = db.session.query(func.sum(Transaction.montant)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.action == 'recharge',
-                    Transaction.status == TransactionStatus.COMPLETED
-                ).scalar() or 0
-                retraits = db.session.query(func.sum(Transaction.montant)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.action == 'retrait',
-                    Transaction.status != TransactionStatus.FAILED
-                ).scalar() or 0
-                gains = db.session.query(func.sum(Transaction.montant)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.action == 'gain',
-                    Transaction.status == TransactionStatus.COMPLETED
-                ).scalar() or 0
-                balance = float(recharges) + float(gains) - float(retraits)
+                balance = UserController.get_balance(user.id)
 
                 users_list.append({
                     'id': user.id,

@@ -37,6 +37,7 @@ from routes.assetRoutes import asset_bp
 from routes.configRetraitRoutes import configRetrait_bp
 from routes.adminRoutes import admin_bp
 from routes.transactionsRoutes import transactions_bp
+from routes.commandeRoutes import commande_bp
 
 # Register blueprints
 app.register_blueprint(user_bp)
@@ -50,6 +51,7 @@ app.register_blueprint(asset_bp)
 app.register_blueprint(configRetrait_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(transactions_bp)
+app.register_blueprint(commande_bp)
 
 
 @app.before_request

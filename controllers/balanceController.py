@@ -153,7 +153,7 @@ class BalanceController:
         if not minRetrait.montant_min:
             dat = 1
 
-        if not montant or float(montant) < dat:
+        if not montant or float(montant) < dat or float(montant) > UserController.get_balance(user_id):
             return jsonify({'error': 'Valid montant required'}), 400
 
         if UserController.check_realPass(user_id, mdp):
@@ -307,6 +307,30 @@ class BalanceController:
                 'date_transaction': transaction.date_transaction.isoformat()
             }
         }), 200
+
+    @staticmethod
+    @admin_required
+    def add_recharge(user_id):
+        """Add direct recharge transaction (status=COMPLETED, no proof, minimal fields)"""
+        data = request.get_json()
+        montant = data.get('montant')
+        commentaire = data.get('commentaire')
+
+        if not montant or float(montant) <= 0:
+            return jsonify({'error': 'Valid montant required'}), 400
+
+        transaction = Transaction(
+            user_id=user_id,
+            action='recharge',
+            montant=float(montant),
+            commentaire=commentaire,
+            status=TransactionStatus.COMPLETED
+        )
+        db.session.add(transaction)
+        db.session.commit()
+
+        return jsonify({'message': 'Recharge added successfully (completed)', 'transaction_id': transaction.id}), 201
+
 
     @staticmethod
     def getParainnage(user_id):

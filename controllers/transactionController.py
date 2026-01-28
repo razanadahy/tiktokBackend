@@ -50,12 +50,18 @@ class TransactionController:
 
             if 'montant' in data:
                 parrainage.montant = float(data['montant'])
+                print(data['montant'], data['status'])
 
-            if 'statut' in data:
+            if 'status' in data:
                 valid_statuses = [s.name for s in TransactionStatus]
-                if data['statut'] not in valid_statuses:
+                if data['status'] not in valid_statuses:
                     return jsonify({'error': f'Invalid statut. Must be one of: {valid_statuses}'}), 400
-                parrainage.statut = data['statut']
+                parrainage.statut = data['status']
+
+                # Update linked transaction status
+                transaction = Transaction.query.filter_by(id=parrainage.idTransaction).first()
+                if transaction:
+                    transaction.status = data['status']
 
             db.session.commit()
             return jsonify({'message': 'Parrainage updated successfully', 'parrainage_id': parrainage_id}), 200

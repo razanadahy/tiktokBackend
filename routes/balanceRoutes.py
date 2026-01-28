@@ -9,6 +9,9 @@ balance_bp.route('/<user_id>', methods=['GET'])(BalanceController.get_balance)
 # Add recharge (with proof)
 balance_bp.route('/add/<user_id>', methods=['POST'])(BalanceController.add_transaction)
 
+# Add direct recharge (completed, no proof)
+balance_bp.route('/recharge/<user_id>', methods=['POST'])(BalanceController.add_recharge)
+
 # Add gain or retrait (minimal)
 balance_bp.route('/add-gain/<user_id>', methods=['POST'])(BalanceController.tapitraProduit)
 #add retrait
