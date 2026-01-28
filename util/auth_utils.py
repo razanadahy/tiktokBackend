@@ -24,3 +24,25 @@ def admin_required(f):
             return jsonify({'error': 'Invalid token'}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+
+def user_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'User authorization required'}), 401
+
+        try:
+            token = auth_header.split(' ')[1]
+            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            user_id = payload.get('user_id')
+            from models import User
+            user = User.query.filter_by(id=user_id).first()
+            if not user:
+                return jsonify({'error': 'User access denied'}), 403
+            request.user = user
+        except jwt.InvalidTokenError:
+            return jsonify({'error': 'Invalid token'}), 401
+        return f(*args, **kwargs)
+    return decorated_function

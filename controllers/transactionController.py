@@ -62,6 +62,7 @@ class TransactionController:
                 transaction = Transaction.query.filter_by(id=parrainage.idTransaction).first()
                 if transaction:
                     transaction.status = data['status']
+                    transaction.montant = float(data['montant'])
 
             db.session.commit()
             return jsonify({'message': 'Parrainage updated successfully', 'parrainage_id': parrainage_id}), 200
