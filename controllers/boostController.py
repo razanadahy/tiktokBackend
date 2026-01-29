@@ -1,8 +1,8 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 
 from controllers.userController import UserController
 from extension import db
-from models import Boost, BoostStatut, Commande, Transaction, TransactionStatus
+from models import Boost, BoostStatut, Commande, Transaction, TransactionStatus, StatProduitBoost
 from util.auth_utils import user_required, admin_required
 from utils import generate_id
 
@@ -372,6 +372,3 @@ class BoostController:
         finally:
             db.session.close()
 
-    @staticmethod
-    @admin_required
-    def get_all_boosts():

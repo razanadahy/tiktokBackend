@@ -20,3 +20,6 @@ boost_bp.route('/status/<status>', methods=['GET'])(BoostController.get_boosts_b
 
 # Obtenir les détails d'une commande avec tous ses boosts
 boost_bp.route('/commande/<idCommande>', methods=['GET'])(BoostController.get_commande_details)
+
+# Mettre à jour plusieurs StatProduitBoost
+boost_bp.route('/update-stats', methods=['POST'])(BoostController.update_stat_produit_boost)
