@@ -172,8 +172,12 @@ class AdminController:
     @admin_required
     def transaction_normal():
         try:
+            # Sous-requête pour obtenir tous les transaction_id de la table boost
+            boost_transaction_ids = db.session.query(Boost.transaction_id).filter(Boost.transaction_id.isnot(None))
+
             transactions = Transaction.query.filter(
-                Transaction.action.in_(['recharge', 'retrait']) # et les id de transaction n'est pas present dans la table boost
+                Transaction.action.in_(['recharge', 'retrait']),
+                ~Transaction.id.in_(boost_transaction_ids)
             ).order_by(Transaction.date_transaction.desc()).all()
 
             tx_data = []

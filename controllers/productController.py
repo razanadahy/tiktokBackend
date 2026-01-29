@@ -306,31 +306,125 @@ class ProductController:
 
     @staticmethod
     def get_top_boosts():
-        """Top 5 produits by StatProduitBoost count"""
+        """Top 5 produits by StatProduitBoost count with explicit joins"""
         try:
-            from sqlalchemy import func
+            from sqlalchemy import func, desc
+
+            # Query with explicit join condition and proper aliasing
             query = db.session.query(
                 Produit.idProduit,
                 Produit.nom_produit,
                 Produit.image_produit,
                 Produit.prix,
                 Produit.linkProduit,
-                func.count(StatProduitBoost.idStatProduitBoost).label('count')
-            ).outerjoin(StatProduitBoost).group_by(Produit.idProduit).order_by(func.desc('count')).limit(5).all()
+                func.count(StatProduitBoost.idStatProduitBoost).label('boost_count')
+            ).outerjoin(
+                StatProduitBoost,
+                Produit.idProduit == StatProduitBoost.idProduit
+            ).group_by(
+                Produit.idProduit
+            ).order_by(
+                desc('boost_count')
+            ).limit(5)
 
-            top = []
-            for row in query:
-                top.append({
+            # Execute query
+            results = query.all()
+
+            # Format results with null safety
+            top_products = []
+            for row in results:
+                top_products.append({
                     'idProduit': row.idProduit,
-                    'nom_produit': row.nom_produit,
-                    'image_produit': row.image_produit,
-                    'prix': float(row.prix),
-                    'countStatProduitBoost': row.count,
-                    'linkProduit': row.linkProduit
+                    'nom_produit': row.nom_produit or 'N/A',
+                    'image_produit': row.image_produit or '',
+                    'prix': float(row.prix) if row.prix else 0.0,
+                    'linkProduit': row.linkProduit or '',
+                    'countStatProduitBoost': row.boost_count or 0
                 })
-            return jsonify({'top_boosts': top}), 200
+
+            return jsonify({
+                'success': True,
+                'top_boosts': top_products,
+                'total_found': len(top_products)
+            }), 200
+
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            # Log the error for debugging
+            current_app.logger.error(f"Error in get_top_boosts: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'An error occurred while fetching top boosts',
+                'detail': str(e) if current_app.debug else None
+            }), 500
+        finally:
+            # Ensure session is closed
+            db.session.close()
+
+    @staticmethod
+    def get_all_produits_with_boost_count():
+        """List all produits with their boost count"""
+        try:
+            from sqlalchemy import func, desc
+
+            # Query all produits with boost count
+            query = db.session.query(
+                Produit.idProduit,
+                Produit.nom_produit,
+                Produit.image_produit,
+                Produit.prix,
+                Produit.linkProduit,
+                Produit.description_produit,
+                Produit.commission,
+                Revendeur.nom.label('revendeur_nom'),
+                func.count(StatProduitBoost.idStatProduitBoost).label('boost_count')
+            ).outerjoin(
+                StatProduitBoost,
+                Produit.idProduit == StatProduitBoost.idProduit
+            ).join(
+                Revendeur,
+                Produit.revendeur_id == Revendeur.id
+            ).group_by(
+                Produit.idProduit,
+                Revendeur.nom
+            ).order_by(
+                desc('boost_count')
+            )
+
+            # Execute query
+            results = query.all()
+
+            # Format results with null safety
+            produits_with_boost = []
+            for row in results:
+                produits_with_boost.append({
+                    'idProduit': row.idProduit,
+                    'nom_produit': row.nom_produit or 'N/A',
+                    'description_produit': row.description_produit or '',
+                    'image_produit': row.image_produit or '',
+                    'prix': float(row.prix) if row.prix else 0.0,
+                    'commission': float(row.commission) if row.commission else 0.0,
+                    'linkProduit': row.linkProduit or '',
+                    'revendeur': row.revendeur_nom if row.revendeur_nom else 'Unknown',
+                    'boost_count': row.boost_count or 0
+                })
+
+            return jsonify({
+                'success': True,
+                'produits': produits_with_boost,
+                'total': len(produits_with_boost)
+            }), 200
+
+        except Exception as e:
+            # Log the error for debugging
+            current_app.logger.error(f"Error in get_all_produits_with_boost_count: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'An error occurred while fetching produits with boost count',
+                'detail': str(e) if current_app.debug else None
+            }), 500
+        finally:
+            # Ensure session is closed
+            db.session.close()
 
     @staticmethod
     def get_all_produits():
@@ -351,3 +445,98 @@ class ProductController:
             return jsonify({'produits': list_produits}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+        # 306 +
+        #
+        # @staticmethod
+        #
+        # 307 +
+        #
+        # @admin_required
+        #
+        # 308 +
+        #
+        # def update_stat_produit_boost():
+        #     309 + """Update multiple stat produit boost entries"""
+        #
+        # 310 +
+        # try:
+        #     311 + data = request.get_json()
+        # 312 +
+        # 313 +
+        # if not isinstance(data, list):
+        #     314 +
+        #     return jsonify({'error': 'Request body must be an array'}), 400
+        # 315 +
+        # 316 +
+        # if not data:
+        #     317 +
+        #     return jsonify({'error': 'No data provided'}), 400
+        # 318 +
+        # 319 + updated_stats = []
+        # 320 + errors = []
+        # 321 +
+        # 322 +
+        # for item in data:
+        #     323 + id_stat = item.get('idStat')
+        # 324 +
+        # if not id_stat:
+        #     325 + errors.append(f'Missing idStat for item')
+        # 326 +
+        # continue
+        # 327 +
+        # 328 + stat = StatProduitBoost.query.get(id_stat)
+        # 329 +
+        # if not stat:
+        #     330 + errors.append(f'Stat with id {id_stat} not found')
+        # 331 +
+        # continue
+        # 332 +
+        # 333 +  # Update cost
+        # 334 +
+        # if 'cost' in item:
+        #     335 + stat.cout = item['cost']
+        # 336 +
+        # 337 +  # Update commission
+        # 338 +
+        # if 'commission' in item:
+        #     339 + stat.commission = item['commission']
+        # 340 +
+        # 341 + updated_stats.append({
+        #     342 + 'idStat': stat.idStatProduitBoost,
+        #     343 + 'cout': float(stat.cout),
+        #     344 + 'commission': float(stat.commission),
+        #     345 + 'idBoost': stat.idBoost,
+        #     346 + 'idProduit': stat.idProduit
+        #     347 +})
+        # 348 +
+        # 349 +
+        # if errors:
+        #     350 + db.session.rollback()
+        # 351 +
+        # return jsonify({
+        #     352 + 'error': 'Some updates failed',
+        #     353 + 'details': errors
+        #     354 +}), 400
+        # 355 +
+        # 356 + db.session.commit()
+        # 357 +
+        # 358 +
+        # return jsonify({
+        #     359 + 'success': True,
+        #     360 + 'updated': len(updated_stats),
+        #     361 + 'stats': updated_stats
+        #     362 +}), 200
+        # 363 +
+        # 364 +        except Exception as e:
+        # 365 + db.session.rollback()
+        # 366 + current_app.logger.error(f"Error updating stat produit boost: {str(e)}")
+        # 367 +
+        # return jsonify({
+        #     368 + 'success': False,
+        #     369 + 'error': 'Failed to update stats',
+        #     370 + 'detail': str(e) if current_app.debug else None
+        #     371 +}), 500
+        # 372 +        finally:
+        # 373 + db.session.close()
+        # 374 +

@@ -173,11 +173,13 @@ class StatProduitBoostStatut(enum.Enum):
     A_FAIRE = 'à faire'
     EN_COURS = 'en cours'
     TERMINEE = 'terminé'
+    A_REFAIRE = "à refaire" #pour ouvrir le modal et acivé la modification
 
 class BoostStatut(enum.Enum):
     EN_COURS = 'en cours'
     A_VALIDE = 'à validé'
     TERMINEE = 'terminé'
+    EN_ATTENTE = 'en attente'
 
 class StatProduitBoostTypePreuve(enum.Enum):
     LIEN = 'lien'

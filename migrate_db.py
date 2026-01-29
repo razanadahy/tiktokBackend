@@ -33,8 +33,24 @@ def migrate_commandes_image():
         else:
             print("Colonne 'image' existe déjà.")
 
+def migrate_boost_transaction_id():
+    """Ajoute la colonne 'transaction_id' à la table 'boosts' si elle n'existe pas"""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('boosts')]
+
+        if 'transaction_id' not in columns:
+            print("Colonne 'transaction_id' manquante. Ajout en cours...")
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE boosts ADD COLUMN transaction_id VARCHAR(12)"))
+                conn.commit()
+            print("Colonne 'transaction_id' ajoutée avec succès!")
+        else:
+            print("Colonne 'transaction_id' existe déjà.")
+
 if __name__ == '__main__':
     print("Migration en cours...")
     create_database_if_not_exists()
     migrate_commandes_image()
+    migrate_boost_transaction_id()
     print("Migration terminée!")
