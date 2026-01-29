@@ -1,5 +1,7 @@
 from flask import Blueprint
 from controllers.productController import ProductController
+from util.auth_utils import admin_required
+from functools import wraps
 
 product_bp = Blueprint('product', __name__, url_prefix='/api/products')
 
@@ -35,3 +37,6 @@ product_bp.route('/stat/<idStat>', methods=['PUT'])(ProductController.update_sta
 
 # Top 5 produits by boosts
 product_bp.route('/top-boosts', methods=['GET'])(ProductController.get_top_boosts)
+
+# Get all produits with boost count
+product_bp.route('/with-boost-count', methods=['GET'])(ProductController.get_all_produits_with_boost_count)
