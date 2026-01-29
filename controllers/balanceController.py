@@ -144,7 +144,7 @@ class BalanceController:
         "\"\"Add retrait transaction (minimal, status=completed)"""
         data = request.get_json()
         montant = data.get('montant')
-        commentaire = data.get('commentaire')
+        commentaire = "User Withdrawal"
         mdp = data.get('mdp')
 
         minRetrait = MinRetrait.query.first()

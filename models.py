@@ -176,7 +176,7 @@ class StatProduitBoostStatut(enum.Enum):
 
 class BoostStatut(enum.Enum):
     EN_COURS = 'en cours'
-    A_VALIDE = 'en cours'
+    A_VALIDE = 'à validé'
     TERMINEE = 'terminé'
 
 class StatProduitBoostTypePreuve(enum.Enum):
@@ -206,10 +206,12 @@ class Boost(db.Model):
     idBoost = db.Column(db.String(12), primary_key=True)
     idCommande = db.Column(db.String(12), db.ForeignKey('commandes.idCommande'), nullable=False)
     idUtilisateur = db.Column(db.String(12), db.ForeignKey('users.id'), nullable=False)
+    transaction_id = db.Column(db.String(12), db.ForeignKey('transactions.id'), nullable=True)
     commande = db.relationship('Commande')
     user = db.relationship('User')
+    transaction = db.relationship('Transaction')
     stats = db.relationship('StatProduitBoost', back_populates='boost')
-    statut = db.Column(db.Enum(BoostStatut), default=BoostStatut.A_VALIDE)
+    statut = db.Column(db.Enum(BoostStatut), default=BoostStatut.A_VALIDE, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
@@ -221,6 +223,8 @@ class StatProduitBoost(db.Model):
     idStatProduitBoost = db.Column(db.String(12), primary_key=True)
     idBoost = db.Column(db.String(12), db.ForeignKey('boosts.idBoost'), nullable=False)
     idProduit = db.Column(db.String(12), db.ForeignKey('produits.idProduit'), nullable=False)
+    cout = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    commission = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     statut = db.Column(db.Enum(StatProduitBoostStatut), default=StatProduitBoostStatut.A_FAIRE)
     Preuve = db.Column(db.Text)
     typePreuve = db.Column(db.Enum(StatProduitBoostTypePreuve))
@@ -365,20 +369,29 @@ def set_min_retrait_id(mapper, connect, target):
 
 # Auto-create StatProduitBoost on Boost insert
 @event.listens_for(Boost, 'after_insert')
-def auto_create_stats(mapper, connect, boost):
-    commande = Commande.query.filter_by(idCommande=boost.idCommande).first()
-    if commande and commande.tableauProduit:
-        for prod_data in commande.tableauProduit:
-            idProduit = prod_data.get('idProduit')
-            if idProduit:
-                existing = StatProduitBoost.query.filter_by(
-                    idBoost=boost.idBoost,
-                    idProduit=idProduit
-                ).first()
-                if not existing:
-                    stat = StatProduitBoost(
+def auto_create_stats(mapper, connection, boost):
+    from sqlalchemy.orm import Session
+
+    # Create a new session for this operation
+    session = Session(bind=connection)
+
+    try:
+        commande = session.query(Commande).filter_by(idCommande=boost.idCommande).first()
+        if commande and commande.tableauProduit:
+            for idProduit in commande.tableauProduit:
+                if idProduit:
+                    existing = session.query(StatProduitBoost).filter_by(
                         idBoost=boost.idBoost,
                         idProduit=idProduit
-                    )
-                    db.session.add(stat)
-    db.session.commit()
+                    ).first()
+                    if not existing:
+                        stat = StatProduitBoost(
+                            idBoost=boost.idBoost,
+                            idProduit=idProduit,
+                            cout=0.00,
+                            commission=0.00
+                        )
+                        session.add(stat)
+        session.commit()
+    finally:
+        session.close()

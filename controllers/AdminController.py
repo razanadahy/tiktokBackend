@@ -3,6 +3,7 @@ from models import Admin, User, Boost, Transaction, TransactionStatus, Parrainag
 from extension import db
 from util.auth_utils import admin_required
 from models import BoostStatut
+from sqlalchemy import not_, exists
 
 class AdminController:
 
@@ -172,7 +173,7 @@ class AdminController:
     def transaction_normal():
         try:
             transactions = Transaction.query.filter(
-                Transaction.action.in_(['recharge', 'retrait'])
+                Transaction.action.in_(['recharge', 'retrait']) # et les id de transaction n'est pas present dans la table boost
             ).order_by(Transaction.date_transaction.desc()).all()
 
             tx_data = []
