@@ -102,7 +102,7 @@ class AdminController:
             # Query boosts that are completed and joined with Commande date today
             # The date to check is in Commande table
             boosts = Boost.query.filter(
-                Boost.statut == BoostStatut.TERMINEE,
+                Boost.statut.in_([BoostStatut.TERMINEE, BoostStatut.EN_ATTENTE]),
                 Boost.date >= today_start
             ).all()
 

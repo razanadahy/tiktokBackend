@@ -15,6 +15,8 @@ boost_bp.route('/admin/details/<idBoost>', methods=['GET'])(BoostController.admi
 # Obtenir tous les boosts
 boost_bp.route('/all', methods=['GET'])(BoostController.get_all_boosts)
 
+boost_bp.route('/user_boost', methods=['GET'])(BoostController.get_boosts_user)
+
 # Obtenir les boosts par statut
 boost_bp.route('/status/<status>', methods=['GET'])(BoostController.get_boosts_by_status)
 
@@ -22,4 +24,4 @@ boost_bp.route('/status/<status>', methods=['GET'])(BoostController.get_boosts_b
 boost_bp.route('/commande/<idCommande>', methods=['GET'])(BoostController.get_commande_details)
 
 # Mettre à jour plusieurs StatProduitBoost
-boost_bp.route('/update-stats', methods=['POST'])(BoostController.update_stat_produit_boost)
+boost_bp.route('/update-stats/<idBoost>', methods=['POST'])(BoostController.update_stat_produit_boost)

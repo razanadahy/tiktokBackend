@@ -219,7 +219,8 @@ class BoostController:
                 'code': commande.code,
                 'prixCommande': commande.cout,
                 'commission': commande.commission_total,
-                'statProduitBoost': stat_produits
+                'statProduitBoost': stat_produits,
+                'statut': boost.statut.value
             })
 
         return jsonify(results), 200
@@ -305,7 +306,7 @@ class BoostController:
 
     @staticmethod
     @admin_required
-    def update_stat_produit_boost():
+    def update_stat_produit_boost(idBoost):
         """Update multiple stat produit boost entries"""
         try:
             data = request.get_json()
@@ -315,6 +316,12 @@ class BoostController:
 
             if not data:
                 return jsonify({'error': 'No data provided'}), 400
+            boost = Boost.query.get(idBoost)
+            if boost.statut==BoostStatut.A_VALIDE:
+                boost.statut = BoostStatut.EN_COURS
+                trans = Transaction.query.get(boost.transaction_id)
+                if not trans:
+                    trans.status = TransactionStatus.COMPLETED
 
             updated_stats = []
             errors = []
@@ -342,8 +349,6 @@ class BoostController:
                     'idStat': stat.idStatProduitBoost,
                     'cout': float(stat.cout),
                     'commission': float(stat.commission),
-                    'idBoost': stat.idBoost,
-                    'idProduit': stat.idProduit
                 })
 
             if errors:
@@ -372,3 +377,47 @@ class BoostController:
         finally:
             db.session.close()
 
+    @staticmethod
+    @user_required
+    def get_boosts_user():
+        user_id = request.user.id
+        boosts = Boost.query.filter_by(idUtilisateur = user_id).all()
+        results = []
+
+        for boost in boosts:
+            user = boost.user
+            commande = boost.commande
+
+            # Build statProduitBoost array
+            stat_produits = []
+            totalPrix=0
+            for stat in boost.stats:
+                produit = stat.produit
+                if produit:
+                    stat_produits.append({
+                        'idProduit': produit.idProduit,
+                        'cout': float(stat.cout),
+                        'commission': float(stat.commission),
+                        'nomProduit': produit.nom_produit,
+                        'idStat': stat.idStatProduitBoost,
+                    })
+                    totalPrix+=float(stat.commission)
+
+            results.append({
+                'idBoost': boost.idBoost,
+                'user': {
+                    'nom': user.nom if user else 'Unknown',
+                    'email': user.email if user else 'Unknown',
+                    'id': user.id if user else 'Unknown'
+                },
+                'date': boost.date.isoformat(),
+                'idCommande': boost.idCommande,
+                'code': commande.code,
+                "title": commande.description_commande,
+                'prixCommande': commande.cout,
+                'commission': commande.commission_total if boost.statut in [BoostStatut.A_VALIDE, BoostStatut.EN_COURS] or totalPrix == 0 else totalPrix,
+                'statProduitBoost': stat_produits,
+                'statut': boost.statut.value,
+            })
+
+        return jsonify(results), 200
