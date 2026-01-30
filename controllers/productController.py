@@ -376,6 +376,7 @@ class ProductController:
                 Produit.description_produit,
                 Produit.commission,
                 Revendeur.nom.label('revendeur_nom'),
+                Revendeur.plateforme.label('revendeur_plateforme'),
                 func.count(StatProduitBoost.idStatProduitBoost).label('boost_count')
             ).outerjoin(
                 StatProduitBoost,
@@ -405,7 +406,8 @@ class ProductController:
                     'commission': float(row.commission) if row.commission else 0.0,
                     'linkProduit': row.linkProduit or '',
                     'revendeur': row.revendeur_nom if row.revendeur_nom else 'Unknown',
-                    'boost_count': row.boost_count or 0
+                    'boost_count': row.boost_count or 0,
+                    'plateforme': row.revendeur_plateforme
                 })
 
             return jsonify({
@@ -445,98 +447,3 @@ class ProductController:
             return jsonify({'produits': list_produits}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-
-        # 306 +
-        #
-        # @staticmethod
-        #
-        # 307 +
-        #
-        # @admin_required
-        #
-        # 308 +
-        #
-        # def update_stat_produit_boost():
-        #     309 + """Update multiple stat produit boost entries"""
-        #
-        # 310 +
-        # try:
-        #     311 + data = request.get_json()
-        # 312 +
-        # 313 +
-        # if not isinstance(data, list):
-        #     314 +
-        #     return jsonify({'error': 'Request body must be an array'}), 400
-        # 315 +
-        # 316 +
-        # if not data:
-        #     317 +
-        #     return jsonify({'error': 'No data provided'}), 400
-        # 318 +
-        # 319 + updated_stats = []
-        # 320 + errors = []
-        # 321 +
-        # 322 +
-        # for item in data:
-        #     323 + id_stat = item.get('idStat')
-        # 324 +
-        # if not id_stat:
-        #     325 + errors.append(f'Missing idStat for item')
-        # 326 +
-        # continue
-        # 327 +
-        # 328 + stat = StatProduitBoost.query.get(id_stat)
-        # 329 +
-        # if not stat:
-        #     330 + errors.append(f'Stat with id {id_stat} not found')
-        # 331 +
-        # continue
-        # 332 +
-        # 333 +  # Update cost
-        # 334 +
-        # if 'cost' in item:
-        #     335 + stat.cout = item['cost']
-        # 336 +
-        # 337 +  # Update commission
-        # 338 +
-        # if 'commission' in item:
-        #     339 + stat.commission = item['commission']
-        # 340 +
-        # 341 + updated_stats.append({
-        #     342 + 'idStat': stat.idStatProduitBoost,
-        #     343 + 'cout': float(stat.cout),
-        #     344 + 'commission': float(stat.commission),
-        #     345 + 'idBoost': stat.idBoost,
-        #     346 + 'idProduit': stat.idProduit
-        #     347 +})
-        # 348 +
-        # 349 +
-        # if errors:
-        #     350 + db.session.rollback()
-        # 351 +
-        # return jsonify({
-        #     352 + 'error': 'Some updates failed',
-        #     353 + 'details': errors
-        #     354 +}), 400
-        # 355 +
-        # 356 + db.session.commit()
-        # 357 +
-        # 358 +
-        # return jsonify({
-        #     359 + 'success': True,
-        #     360 + 'updated': len(updated_stats),
-        #     361 + 'stats': updated_stats
-        #     362 +}), 200
-        # 363 +
-        # 364 +        except Exception as e:
-        # 365 + db.session.rollback()
-        # 366 + current_app.logger.error(f"Error updating stat produit boost: {str(e)}")
-        # 367 +
-        # return jsonify({
-        #     368 + 'success': False,
-        #     369 + 'error': 'Failed to update stats',
-        #     370 + 'detail': str(e) if current_app.debug else None
-        #     371 +}), 500
-        # 372 +        finally:
-        # 373 + db.session.close()
-        # 374 +

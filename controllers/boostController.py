@@ -1,8 +1,11 @@
+import os
 from flask import jsonify, request, current_app
+from werkzeug.utils import secure_filename
 
 from controllers.userController import UserController
 from extension import db
-from models import Boost, BoostStatut, Commande, Transaction, TransactionStatus, StatProduitBoost
+from models import Boost, BoostStatut, Commande, Transaction, TransactionStatus, StatProduitBoost, \
+    StatProduitBoostTypePreuve, StatProduitBoostStatut
 from util.auth_utils import user_required, admin_required
 from utils import generate_id
 
@@ -106,7 +109,6 @@ class BoostController:
         }), 200
 
     @staticmethod
-    @user_required
     def get_boost_details(idBoost):
         boost = Boost.query.get(idBoost)
         if not boost:
@@ -131,7 +133,12 @@ class BoostController:
                     'idProduit': produit.idProduit,
                     'cout': float(stat.cout),
                     'commission': float(stat.commission),
-                    'nomProduit': produit.nom_produit
+                    'nomProduit': produit.nom_produit,
+                    'idStat': stat.idStatProduitBoost,
+                    'image': produit.image_produit,
+                    'prix': produit.prix,
+                    'lien': produit.linkProduit,
+                    'statut' : stat.statut.value,
                 })
 
         return jsonify({
@@ -142,46 +149,9 @@ class BoostController:
             },
             'date': boost.date.isoformat(),
             'idCommande': boost.idCommande,
-            'statProduitBoost': stat_produits
-        }), 200
-
-    @staticmethod
-    def admin_get_boost_details(idBoost):
-        boost = Boost.query.get(idBoost)
-        if not boost:
-            return jsonify({'error': 'Boost not found'}), 404
-
-        # Get user info
-        user = boost.user
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-
-        # Get command info
-        commande = boost.commande
-        if not commande:
-            return jsonify({'error': 'Commande not found'}), 404
-
-        # Build statProduitBoost array
-        stat_produits = []
-        for stat in boost.stats:
-            produit = stat.produit
-            if produit:
-                stat_produits.append({
-                    'idProduit': produit.idProduit,
-                    'cout': float(stat.cout),
-                    'commission': float(stat.commission),
-                    'nomProduit': produit.nom_produit
-                })
-
-        return jsonify({
-            'idBoost': boost.idBoost,
-            'user': {
-                'nom': user.nom,
-                'email': user.email
-            },
-            'date': boost.date.isoformat(),
-            'idCommande': boost.idCommande,
-            'statProduitBoost': stat_produits
+            'statProduitBoost': stat_produits,
+            'code': commande.code,
+            "title": commande.description_commande,
         }), 200
 
     @staticmethod
@@ -320,7 +290,7 @@ class BoostController:
             if boost.statut==BoostStatut.A_VALIDE:
                 boost.statut = BoostStatut.EN_COURS
                 trans = Transaction.query.get(boost.transaction_id)
-                if not trans:
+                if trans:
                     trans.status = TransactionStatus.COMPLETED
 
             updated_stats = []
@@ -421,3 +391,88 @@ class BoostController:
             })
 
         return jsonify(results), 200
+
+    @staticmethod
+    @user_required
+    def add_preuve_stat_produit_boost():
+        try:
+            id_stat = request.form.get('idStatProduitBoost')
+            preuve = request.form.get('Preuve')
+            type_preuve = request.form.get('typePreuve')
+
+            if not id_stat:
+                return jsonify({'error': 'idStatProduitBoost est requis'}), 400
+            if not type_preuve:
+                return jsonify({'error': 'typePreuve est requis'}), 400
+
+            # Vérifier que le typePreuve est valide
+            if type_preuve not in ['lien', 'screenshot']:
+                return jsonify({'error': 'typePreuve doit être "lien" ou "screenshot"'}), 400
+
+            # Récupérer le stat produit boost
+            stat = StatProduitBoost.query.get(id_stat)
+            if not stat:
+                return jsonify({'error': 'StatProduitBoost non trouvé'}), 404
+
+            user_id = request.user.id
+            boost = stat.boost
+            if boost.idUtilisateur != user_id:
+                return jsonify({'error': 'Accès non autorisé'}), 403
+
+            preuve_value = None
+
+            if type_preuve == 'lien':
+                if not preuve:
+                    return jsonify({'error': 'Preuve (lien) est requise'}), 400
+                preuve_value = preuve
+
+            elif type_preuve == 'screenshot':
+                if 'Preuve' not in request.files:
+                    return jsonify({'error': 'Fichier screenshot est requis'}), 400
+
+                file = request.files['Preuve']
+                if file.filename == '':
+                    return jsonify({'error': 'Aucun fichier sélectionné'}), 400
+
+                # Créer le dossier uploads s'il n'existe pas
+                uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+                os.makedirs(uploads_dir, exist_ok=True)
+
+                # Sauvegarder le fichier avec un nom sécurisé
+                filename = secure_filename(file.filename)
+                unique_filename = f"{generate_id()}_{filename}"
+                file_path = os.path.join(uploads_dir, unique_filename)
+                file.save(file_path)
+
+                preuve_value = unique_filename
+
+            # Mettre à jour le stat produit boost
+            stat.Preuve = preuve_value
+            stat.typePreuve = StatProduitBoostTypePreuve(type_preuve)
+            stat.statut = StatProduitBoostStatut.TERMINEE
+            stats_termines = [s for s in boost.stats if s.statut == StatProduitBoostStatut.TERMINEE]
+            # print(len(stats_termines))
+            # # if boostsCountProduitFinished == len (boost.stats):
+            # print(len (boost.stats)) #je veux avoir la taille de stats qui a un statut terminé
+            if len(stats_termines) >= len (boost.stats):
+                boost.statut = BoostStatut.EN_ATTENTE
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Preuve ajoutée avec succès',
+                'idStatProduitBoost': stat.idStatProduitBoost,
+                'typePreuve': type_preuve,
+                'Preuve': preuve_value
+            }), 200
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur lors de l'ajout de la preuve: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Échec de l\'ajout de la preuve',
+                'detail': str(e) if current_app.debug else None
+            }), 500
+        finally:
+            db.session.close()

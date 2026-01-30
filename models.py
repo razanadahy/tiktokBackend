@@ -180,6 +180,7 @@ class BoostStatut(enum.Enum):
     A_VALIDE = 'à validé'
     TERMINEE = 'terminé'
     EN_ATTENTE = 'en attente'
+    A_REFAIRE = "à refaire"
 
 class StatProduitBoostTypePreuve(enum.Enum):
     LIEN = 'lien'

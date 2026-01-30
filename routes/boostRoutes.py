@@ -9,8 +9,6 @@ boost_bp.route('/add/<idCommande>', methods=['POST'])(BoostController.add_boost)
 # Obtenir les détails d'un boost
 boost_bp.route('/details/<idBoost>', methods=['GET'])(BoostController.get_boost_details)
 
-# Route admin pour obtenir les détails d'un boost
-boost_bp.route('/admin/details/<idBoost>', methods=['GET'])(BoostController.admin_get_boost_details)
 
 # Obtenir tous les boosts
 boost_bp.route('/all', methods=['GET'])(BoostController.get_all_boosts)
@@ -25,3 +23,6 @@ boost_bp.route('/commande/<idCommande>', methods=['GET'])(BoostController.get_co
 
 # Mettre à jour plusieurs StatProduitBoost
 boost_bp.route('/update-stats/<idBoost>', methods=['POST'])(BoostController.update_stat_produit_boost)
+
+# Ajouter une preuve sur un StatProduitBoost (lien ou screenshot)
+boost_bp.route('/add-preuve', methods=['POST'])(BoostController.add_preuve_stat_produit_boost)
